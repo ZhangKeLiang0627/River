@@ -1,5 +1,12 @@
-# River-dev
-# by Hugo@kkl
+<p align="center">
+  <img width="18%" align="center" src="https://github.com/ZhangKeLiang0627/River-dev/docs/source/river.png" alt="logo">
+</p>
+  <h1 align="center">
+  River
+</h1>
+<p align="center">
+  A icon generator based on PySide6
+</p>
 
 ---
 
