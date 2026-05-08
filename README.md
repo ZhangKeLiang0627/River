@@ -1,5 +1,5 @@
 <p align="center">
-  <img width="18%" align="center" src="https://github.com/ZhangKeLiang0627/River-dev/docs/source/river.png" alt="logo">
+  <img width="18%" align="center" src="https://github.com/ZhangKeLiang0627/River-dev/blob/main/docs/source/river.png?raw=true" alt="logo">
 </p>
   <h1 align="center">
   River
