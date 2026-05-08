@@ -6,7 +6,8 @@ from PySide6.QtWidgets import QApplication, QHBoxLayout, QFrame, QWidget
 
 # [test]
 from qfluentwidgets import (NavigationAvatarWidget, NavigationItemPosition, MessageBox, FluentWindow,
-                            SplashScreen, SystemThemeListener, isDarkTheme, SubtitleLabel, setFont)
+                            SplashScreen, SystemThemeListener, isDarkTheme, SubtitleLabel, setFont,
+                            MSFluentWindow)
 from qfluentwidgets import FluentIcon as FIF
 
 from .gallery_interface import GalleryInterface
@@ -46,7 +47,7 @@ class TempWidget(QFrame):
         # 必须给子界面设置全局唯一的对象名
         self.setObjectName(text.replace(' ', '-'))
 
-class MainWindow(FluentWindow):
+class MainWindow(MSFluentWindow):
 
     def __init__(self):
         super().__init__()
@@ -81,7 +82,7 @@ class MainWindow(FluentWindow):
         self.tempInterface6 = TempWidget('Album Interface 1', self)
 
         # enable acrylic effect
-        self.navigationInterface.setAcrylicEnabled(True)
+        # self.navigationInterface.setAcrylicEnabled(True)
 
         self.connectSignalToSlot()
 
@@ -102,44 +103,29 @@ class MainWindow(FluentWindow):
         t = Translator()
 
         # [test] 谁在顶部，谁第一个显示
-        self.addSubInterface(self.homeInterface, FIF.HOME, self.tr('Home'))
-        self.addSubInterface(self.iconInterface, Icon.EMOJI_TAB_SYMBOLS, t.icons)
-        self.navigationInterface.addSeparator() # 分割线
+        # Top
+        self.addSubInterface(self.homeInterface, FIF.HOME, self.tr('Home'), Icon.EMOJI_TAB_SYMBOLS)
+        self.addSubInterface(self.iconInterface, Icon.EMOJI_TAB_SYMBOLS, t.icons, Icon.EMOJI_TAB_SYMBOLS)
 
-        pos = NavigationItemPosition.SCROLL
-        self.addSubInterface(self.basicInputInterface, FIF.CHECKBOX,t.basicInput, pos)
-        
-        # self.addSubInterface(self.dateTimeInterface, FIF.DATE_TIME, t.dateTime, pos)
-        # self.addSubInterface(self.dialogInterface, FIF.MESSAGE, t.dialogs, pos)
-        # self.addSubInterface(self.layoutInterface, FIF.LAYOUT, t.layout, pos)
-        # self.addSubInterface(self.materialInterface, FIF.PALETTE, t.material, pos)
-        # self.addSubInterface(self.menuInterface, Icon.MENU, t.menus, pos)
-        # self.addSubInterface(self.navigationViewInterface, FIF.MENU, t.navigation, pos)
-        # self.addSubInterface(self.scrollInterface, FIF.SCROLL, t.scroll, pos)
-        # self.addSubInterface(self.statusInfoInterface, FIF.CHAT, t.statusInfo, pos)
-        # self.addSubInterface(self.textInterface, Icon.TEXT, t.text, pos)
-        # self.addSubInterface(self.viewInterface, Icon.GRID, t.view, pos)
-
+        # Scroll
+        self.addSubInterface(self.basicInputInterface, FIF.CHECKBOX, t.basicInput, FIF.CHECKBOX, NavigationItemPosition.SCROLL)
         # [test]
-        self.addSubInterface(self.tempInterface1, FIF.SETTING, 'Settings1', NavigationItemPosition.SCROLL)
-        self.addSubInterface(self.tempInterface2, FIF.SETTING, 'Settings2', NavigationItemPosition.SCROLL)
-        self.addSubInterface(self.tempInterface3, FIF.SETTING, 'Settings3', NavigationItemPosition.SCROLL)
-        self.addSubInterface(self.tempInterface4, FIF.SETTING, 'Settings4', NavigationItemPosition.SCROLL)
-        self.addSubInterface(self.tempInterface5, FIF.SETTING, 'Settings5', NavigationItemPosition.SCROLL)
-        # self.addSubInterface(self.tempInterface6, FIF.SETTING, 'Settings6', NavigationItemPosition.BOTTOM)
+        self.addSubInterface(self.tempInterface1, FIF.SETTING, 'Settings1', FIF.SETTING, NavigationItemPosition.SCROLL)
+        self.addSubInterface(self.tempInterface2, FIF.SETTING, 'Settings2', FIF.SETTING, NavigationItemPosition.SCROLL)
+        self.addSubInterface(self.tempInterface3, FIF.SETTING, 'Settings3', FIF.SETTING, NavigationItemPosition.SCROLL)
+        self.addSubInterface(self.tempInterface4, FIF.SETTING, 'Settings4', FIF.SETTING, NavigationItemPosition.SCROLL)
+        self.addSubInterface(self.tempInterface5, FIF.SETTING, 'Settings5', FIF.SETTING, NavigationItemPosition.SCROLL)
 
-        # add custom widget to bottom
+        # Bottom
         self.navigationInterface.addItem(
             routeKey='about',
             icon=Icon.PRICE,
             text=self.tr('About'),
             onClick=self.onSupport,
             selectable=False,
-            tooltip=self.tr('About'),
             position=NavigationItemPosition.BOTTOM
         )
-        self.addSubInterface(
-            self.settingInterface, FIF.SETTING, self.tr('Settings'), NavigationItemPosition.BOTTOM)
+        self.addSubInterface(self.settingInterface, FIF.SETTING, self.tr('Settings'), FIF.SETTING, NavigationItemPosition.BOTTOM)
 
     def initWindow(self):
         self.resize(960, 780)
