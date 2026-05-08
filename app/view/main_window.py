@@ -28,7 +28,7 @@ from ..common.config import ZH_SUPPORT_URL, EN_SUPPORT_URL, cfg
 from ..common.icon import Icon
 from ..common.signal_bus import signalBus
 from ..common.translator import Translator
-from ..resource import resource_rc
+from ..resources import resources_rc
 
 
 # [test]

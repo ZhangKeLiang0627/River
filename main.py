@@ -8,7 +8,7 @@ from PySide6.QtWidgets import QApplication
 from qfluentwidgets import FluentTranslator
 
 from app.common.config import cfg
-from app.resource import resource_rc
+from app.resources import resources_rc
 from app.view.main_window import MainWindow
 
 
