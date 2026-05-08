@@ -19,7 +19,7 @@ pip install pyside6
 pip install -r requirements.txt
 
 # 编译resources.qrc
-pyrcc6 app/resources/resources.qrc -o app/resources/resources_rc.py
+pyside6-rcc app/resources/resources.qrc -o app/resources/resources_rc.py
 
 # 运行项目
 python main.py

@@ -216,3 +216,11 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# [kkl] General
+.DS_Store
+config.json
+.vscode/
+download/
+build/
+dist/

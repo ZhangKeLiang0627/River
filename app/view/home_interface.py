@@ -21,7 +21,7 @@ class BannerWidget(QWidget):
         self.setFixedHeight(336)
 
         self.vBoxLayout = QVBoxLayout(self)
-        self.galleryLabel = QLabel('Fluent Gallery', self)
+        self.galleryLabel = QLabel('River', self)
         self.banner = QPixmap(':/gallery/images/header1.png')
         self.linkCardView = LinkCardView(self)
 
