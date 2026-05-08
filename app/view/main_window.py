@@ -130,12 +130,12 @@ class MainWindow(FluentWindow):
 
         # add custom widget to bottom
         self.navigationInterface.addItem(
-            routeKey='price',
+            routeKey='about',
             icon=Icon.PRICE,
-            text=t.price,
+            text=self.tr('About'),
             onClick=self.onSupport,
             selectable=False,
-            tooltip=t.price,
+            tooltip=self.tr('About'),
             position=NavigationItemPosition.BOTTOM
         )
         self.addSubInterface(
