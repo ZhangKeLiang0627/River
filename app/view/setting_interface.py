@@ -1,6 +1,6 @@
 # coding:utf-8
 from qfluentwidgets import (SettingCardGroup, SwitchSettingCard, FolderListSettingCard,
-                            OptionsSettingCard, PushSettingCard,
+                            OptionsSettingCard, PushSettingCard, MSFluentWindow,
                             HyperlinkCard, PrimaryPushSettingCard, ScrollArea,
                             ComboBoxSettingCard, ExpandLayout, Theme, CustomColorSettingCard,
                             setTheme, setThemeColor, RangeSettingCard, isDarkTheme)
@@ -22,6 +22,8 @@ class SettingInterface(ScrollArea):
         super().__init__(parent=parent)
         self.scrollWidget = QWidget()
         self.expandLayout = ExpandLayout(self.scrollWidget)
+
+        self.mainWindow: MSFluentWindow = parent
 
         # setting label
         self.settingLabel = QLabel(self.tr("Settings"), self)
@@ -209,6 +211,11 @@ class SettingInterface(ScrollArea):
             parent=self
         )
 
+    def __onWindowStickyCardClicked(self):
+        """ window sticky card clicked slot """
+        print("WindowSticky:", self.windowStickyCard.isChecked())
+        self.mainWindow.setStayOnTop(self.windowStickyCard.isChecked())
+        
     def __onDownloadFolderCardClicked(self):
         """ download folder card clicked slot """
         folder = QFileDialog.getExistingDirectory(
@@ -223,9 +230,13 @@ class SettingInterface(ScrollArea):
         """ connect signal to slot """
         cfg.appRestartSig.connect(self.__showRestartTooltip)
 
-        # music in the pc
+        # download
         self.downloadFolderCard.clicked.connect(
             self.__onDownloadFolderCardClicked)
+        
+        # behavior
+        self.windowStickyCard.checkedChanged.connect(
+            self.__onWindowStickyCardClicked)
 
         # personalization
         cfg.themeChanged.connect(setTheme)
