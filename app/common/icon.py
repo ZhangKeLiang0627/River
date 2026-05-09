@@ -11,6 +11,7 @@ class Icon(FluentIconBase, Enum):
     TEXT = "Text"
     PRICE = "Price"
     EMOJI_TAB_SYMBOLS = "EmojiTabSymbols"
+    APPLICATION_WINDOW = "ApplicationWindow"
 
     def path(self, theme=Theme.AUTO):
         return f":/gallery/images/icons/{self.value}_{getIconColor(theme)}.svg"

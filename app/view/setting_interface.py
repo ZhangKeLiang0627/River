@@ -13,7 +13,7 @@ from PySide6.QtWidgets import QWidget, QLabel, QFileDialog
 from ..common.config import cfg, HELP_URL, FEEDBACK_URL, AUTHOR, VERSION, YEAR, isWin11
 from ..common.signal_bus import signalBus
 from ..common.style_sheet import StyleSheet
-
+from ..common.icon import Icon
 
 class SettingInterface(ScrollArea):
     """ Setting interface """
@@ -27,7 +27,7 @@ class SettingInterface(ScrollArea):
         self.settingLabel = QLabel(self.tr("Settings"), self)
 
         # download folders
-        self.DownloadGroup = SettingCardGroup(
+        self.downloadGroup = SettingCardGroup(
             self.tr("Download"), self.scrollWidget)
        
         self.downloadFolderCard = PushSettingCard(
@@ -35,8 +35,20 @@ class SettingInterface(ScrollArea):
             FIF.DOWNLOAD,
             self.tr("Download directory"),
             cfg.get(cfg.downloadFolder),
-            self.DownloadGroup
+            self.downloadGroup
         )
+
+        # Behavior
+        self.behaviorGroup = SettingCardGroup(self.tr("Behavior"), self)
+        # self.windowStickyCard = SwitchSettingCard(
+        #     Icon.APPLICATION_WINDOW,
+        #     self.tr('Window sticky'),
+        #     self.tr('Keep the window on top of other windows'),
+        #     cfg.windowSticky,
+        #     self.behaviorGroup
+        # )
+
+
 
         # personalization
         self.personalGroup = SettingCardGroup(
@@ -160,7 +172,7 @@ class SettingInterface(ScrollArea):
         self.settingLabel.move(36, 30)
 
         # add cards to group
-        self.DownloadGroup.addSettingCard(self.downloadFolderCard)
+        self.downloadGroup.addSettingCard(self.downloadFolderCard)
 
         self.personalGroup.addSettingCard(self.micaCard)
         self.personalGroup.addSettingCard(self.themeCard)
@@ -179,7 +191,7 @@ class SettingInterface(ScrollArea):
         # add setting card group to layout
         self.expandLayout.setSpacing(28)
         self.expandLayout.setContentsMargins(36, 10, 36, 0)
-        self.expandLayout.addWidget(self.DownloadGroup)
+        self.expandLayout.addWidget(self.downloadGroup)
         self.expandLayout.addWidget(self.personalGroup)
         self.expandLayout.addWidget(self.materialGroup)
         self.expandLayout.addWidget(self.updateSoftwareGroup)
