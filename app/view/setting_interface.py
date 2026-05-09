@@ -39,16 +39,15 @@ class SettingInterface(ScrollArea):
         )
 
         # Behavior
-        self.behaviorGroup = SettingCardGroup(self.tr("Behavior"), self)
-        # self.windowStickyCard = SwitchSettingCard(
-        #     Icon.APPLICATION_WINDOW,
-        #     self.tr('Window sticky'),
-        #     self.tr('Keep the window on top of other windows'),
-        #     cfg.windowSticky,
-        #     self.behaviorGroup
-        # )
+        self.behaviorGroup = SettingCardGroup(self.tr("Behavior"), self.scrollWidget)
 
-
+        self.windowStickyCard = SwitchSettingCard(
+            Icon.APPLICATION_WINDOW,
+            self.tr('Window sticky'),
+            self.tr('Keep the window on top of other windows'),
+            cfg.windowSticky,
+            self.behaviorGroup
+        )
 
         # personalization
         self.personalGroup = SettingCardGroup(
@@ -174,6 +173,9 @@ class SettingInterface(ScrollArea):
         # add cards to group
         self.downloadGroup.addSettingCard(self.downloadFolderCard)
 
+        # behavior
+        self.behaviorGroup.addSettingCard(self.windowStickyCard)
+
         self.personalGroup.addSettingCard(self.micaCard)
         self.personalGroup.addSettingCard(self.themeCard)
         self.personalGroup.addSettingCard(self.themeColorCard)
@@ -192,6 +194,7 @@ class SettingInterface(ScrollArea):
         self.expandLayout.setSpacing(28)
         self.expandLayout.setContentsMargins(36, 10, 36, 0)
         self.expandLayout.addWidget(self.downloadGroup)
+        self.expandLayout.addWidget(self.behaviorGroup)
         self.expandLayout.addWidget(self.personalGroup)
         self.expandLayout.addWidget(self.materialGroup)
         self.expandLayout.addWidget(self.updateSoftwareGroup)
