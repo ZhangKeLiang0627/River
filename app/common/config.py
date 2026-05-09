@@ -34,6 +34,9 @@ def isWin11():
 class Config(QConfig):
     """ Config of application """
 
+    # version
+    appVersion = "00.00.01"
+
     # folders
     downloadFolder = ConfigItem(
         "Folders", "Download", "app/download", FolderValidator())
@@ -59,7 +62,7 @@ class Config(QConfig):
 
 YEAR = 2026
 AUTHOR = "kkl"
-VERSION = __version__
+QFLUENTWIDGETS_VERSION = __version__
 HELP_URL = "https://zhangkeliang0627.github.io/"
 REPO_URL = "https://github.com/ZhangKeLiang0627/River-dev"
 EXAMPLE_URL = "https://github.com/ZhangKeLiang0627/River-dev/tree/main"

@@ -10,7 +10,7 @@ from PySide6.QtCore import Qt, Signal, QUrl, QStandardPaths
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import QWidget, QLabel, QFileDialog
 
-from ..common.config import cfg, HELP_URL, FEEDBACK_URL, AUTHOR, VERSION, YEAR, isWin11
+from ..common.config import cfg, HELP_URL, FEEDBACK_URL, AUTHOR, QFLUENTWIDGETS_VERSION, YEAR, isWin11
 from ..common.signal_bus import signalBus
 from ..common.style_sheet import StyleSheet
 from ..common.icon import Icon
@@ -144,7 +144,7 @@ class SettingInterface(ScrollArea):
             FIF.INFO,
             self.tr('About'),
             '© ' + self.tr('Copyright') + f" {YEAR}, {AUTHOR}. " +
-            self.tr('Version') + " " + VERSION,
+            self.tr('Version') + " " + cfg.appVersion,
             self.aboutGroup
         )
 
