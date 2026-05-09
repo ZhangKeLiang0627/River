@@ -3,7 +3,7 @@ import sys
 from enum import Enum
 
 from PySide6.QtCore import QLocale
-from qfluentwidgets import (qconfig, QConfig, ConfigItem, OptionsConfigItem, BoolValidator,
+from qfluentwidgets import (qconfig, QConfig, ConfigItem, ColorConfigItem, OptionsConfigItem, BoolValidator,
                             OptionsValidator, RangeConfigItem, RangeValidator,
                             FolderListValidator, Theme, FolderValidator, ConfigSerializer, __version__)
 
@@ -53,6 +53,8 @@ class Config(QConfig):
     # software update
     checkUpdateAtStartUp = ConfigItem("Update", "CheckUpdateAtStartUp", True, BoolValidator())
 
+    # theme color
+    themeColor = ColorConfigItem("QFluentWidgets", "ThemeColor", '#1c5fc7')
 
 YEAR = 2026
 AUTHOR = "kkl"

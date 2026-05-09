@@ -131,7 +131,7 @@ class MainWindow(MSFluentWindow):
         self.resize(960, 780)
         self.setMinimumWidth(760)
         self.setWindowIcon(QIcon(':/gallery/images/river.png'))
-        self.setWindowTitle('River-dev')
+        self.setWindowTitle('River')
 
         self.setMicaEffectEnabled(cfg.get(cfg.micaEnabled))
 
