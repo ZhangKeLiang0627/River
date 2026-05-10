@@ -59,6 +59,7 @@ class Config(QConfig):
 
     # behavior
     windowSticky = ConfigItem("Behavior", "WindowSticky", False, BoolValidator())
+    clipboardMonitor = ConfigItem("Behavior", "ClipboardMonitor", False, BoolValidator())
 
 YEAR = 2026
 AUTHOR = "kkl"

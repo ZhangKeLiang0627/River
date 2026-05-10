@@ -8,12 +8,13 @@ from qfluentwidgets import FluentIcon as FIF
 from qfluentwidgets import InfoBar
 from PySide6.QtCore import Qt, Signal, QUrl, QStandardPaths
 from PySide6.QtGui import QDesktopServices
-from PySide6.QtWidgets import QWidget, QLabel, QFileDialog
+from PySide6.QtWidgets import QWidget, QLabel, QFileDialog, QApplication
 
 from ..common.config import cfg, HELP_URL, FEEDBACK_URL, AUTHOR, QFLUENTWIDGETS_VERSION, YEAR, isWin11
 from ..common.signal_bus import signalBus
 from ..common.style_sheet import StyleSheet
 from ..common.icon import Icon
+from ..common.utils import bringWindowToTop
 
 class SettingInterface(ScrollArea):
     """ Setting interface """
@@ -24,6 +25,10 @@ class SettingInterface(ScrollArea):
         self.expandLayout = ExpandLayout(self.scrollWidget)
 
         self.mainWindow: MSFluentWindow = parent
+
+        # clipboard
+        self.clipboard = QApplication.clipboard()
+        self.clipboard.changed.connect(self.__onCopyUrl)
 
         # setting label
         self.settingLabel = QLabel(self.tr("Settings"), self)
@@ -43,6 +48,14 @@ class SettingInterface(ScrollArea):
         # Behavior
         self.behaviorGroup = SettingCardGroup(self.tr("Behavior"), self.scrollWidget)
 
+        self.clipboardMonitorCard = SwitchSettingCard(
+            FIF.CLIPPING_TOOL,
+            self.tr('Clipboard monitor'),
+            self.tr('Automatically start parsing when a link is copied'),
+            cfg.clipboardMonitor,
+            self.behaviorGroup
+        )
+
         self.windowStickyCard = SwitchSettingCard(
             Icon.APPLICATION_WINDOW,
             self.tr('Window sticky'),
@@ -50,7 +63,6 @@ class SettingInterface(ScrollArea):
             cfg.windowSticky,
             self.behaviorGroup
         )
-        
 
         # personalization
         self.personalGroup = SettingCardGroup(
@@ -178,6 +190,7 @@ class SettingInterface(ScrollArea):
 
         # behavior
         self.behaviorGroup.addSettingCard(self.windowStickyCard)
+        self.behaviorGroup.addSettingCard(self.clipboardMonitorCard)
 
         self.personalGroup.addSettingCard(self.micaCard)
         self.personalGroup.addSettingCard(self.themeCard)
@@ -216,6 +229,10 @@ class SettingInterface(ScrollArea):
         """ window sticky card clicked slot """
         print("WindowSticky:", self.windowStickyCard.isChecked())
         self.mainWindow.setStayOnTop(self.windowStickyCard.isChecked())
+
+    def __onClipboardMonitorCardClicked(self):
+        """ clipboard monitor card clicked slot """
+        print("ClipboardMonitor:", self.clipboardMonitorCard.isChecked())
         
     def __onDownloadFolderCardClicked(self):
         """ download folder card clicked slot """
@@ -226,6 +243,12 @@ class SettingInterface(ScrollArea):
 
         cfg.set(cfg.downloadFolder, folder)
         self.downloadFolderCard.setContent(folder)
+
+    def __onCopyUrl(self):
+        if self.clipboard.mimeData().hasText() and cfg.get(cfg.clipboardMonitor):
+            url = self.clipboard.text()
+            bringWindowToTop(self.mainWindow)
+
 
     def __connectSignalToSlot(self):
         """ connect signal to slot """
@@ -238,6 +261,9 @@ class SettingInterface(ScrollArea):
         # behavior
         self.windowStickyCard.checkedChanged.connect(
             self.__onWindowStickyCardClicked)
+        
+        self.clipboardMonitorCard.checkedChanged.connect(
+            self.__onClipboardMonitorCardClicked)
 
         # personalization
         cfg.themeChanged.connect(setTheme)
