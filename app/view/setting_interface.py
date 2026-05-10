@@ -6,7 +6,7 @@ from qfluentwidgets import (SettingCardGroup, SwitchSettingCard, FolderListSetti
                             setTheme, setThemeColor, RangeSettingCard, isDarkTheme)
 from qfluentwidgets import FluentIcon as FIF
 from qfluentwidgets import InfoBar
-from PySide6.QtCore import Qt, Signal, QUrl, QStandardPaths
+from PySide6.QtCore import Qt, Signal, QUrl, QStandardPaths, QTimer
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import QWidget, QLabel, QFileDialog, QApplication
 
@@ -28,7 +28,6 @@ class SettingInterface(ScrollArea):
 
         # clipboard
         self.clipboard = QApplication.clipboard()
-        self.clipboard.changed.connect(self.__onCopyUrl)
 
         # setting label
         self.settingLabel = QLabel(self.tr("Settings"), self)
@@ -233,6 +232,7 @@ class SettingInterface(ScrollArea):
     def __onClipboardMonitorCardClicked(self):
         """ clipboard monitor card clicked slot """
         print("ClipboardMonitor:", self.clipboardMonitorCard.isChecked())
+        # QTimer.singleShot(5000, lambda: bringWindowToTop(self.mainWindow))
         
     def __onDownloadFolderCardClicked(self):
         """ download folder card clicked slot """
@@ -245,10 +245,10 @@ class SettingInterface(ScrollArea):
         self.downloadFolderCard.setContent(folder)
 
     def __onCopyUrl(self):
+        print("ClipboardMonitor:", self.clipboard.text())
         if self.clipboard.mimeData().hasText() and cfg.get(cfg.clipboardMonitor):
             url = self.clipboard.text()
             bringWindowToTop(self.mainWindow)
-
 
     def __connectSignalToSlot(self):
         """ connect signal to slot """
@@ -273,3 +273,6 @@ class SettingInterface(ScrollArea):
         # about
         self.feedbackCard.clicked.connect(
             lambda: QDesktopServices.openUrl(QUrl(FEEDBACK_URL)))
+        
+        # clipboard
+        self.clipboard.changed.connect(self.__onCopyUrl)
