@@ -34,7 +34,8 @@ def isWin11():
 class Config(QConfig):
     """ Config of application """
 
-    # version
+    # app
+    appName = "RIVER"
     appVersion = "00.00.01"
 
     # folders

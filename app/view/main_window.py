@@ -30,7 +30,7 @@ from ..common.icon import Icon
 from ..common.signal_bus import signalBus
 from ..common.translator import Translator
 from ..resources import resources_rc
-
+from ..components.about_dialog import AboutDialog
 
 # [test]
 class TempWidget(QFrame):
@@ -121,7 +121,7 @@ class MainWindow(MSFluentWindow):
             routeKey='about',
             icon=Icon.PRICE,
             text=self.tr('About'),
-            onClick=self.onSupport,
+            onClick=self.onAbout,
             selectable=False,
             position=NavigationItemPosition.BOTTOM
         )
@@ -148,6 +148,10 @@ class MainWindow(MSFluentWindow):
         self.move(w//2 - self.width()//2, h//2 - self.height()//2)
         self.show()
         QApplication.processEvents()
+
+    def onAbout(self):
+        dialog = AboutDialog(self)
+        dialog.exec()
 
     def onSupport(self):
         language = cfg.get(cfg.language).value
