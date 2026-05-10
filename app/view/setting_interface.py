@@ -3,7 +3,7 @@ from qfluentwidgets import (SettingCardGroup, SwitchSettingCard, FolderListSetti
                             OptionsSettingCard, PushSettingCard, MSFluentWindow,
                             HyperlinkCard, PrimaryPushSettingCard, ScrollArea,
                             ComboBoxSettingCard, ExpandLayout, Theme, CustomColorSettingCard,
-                            setTheme, setThemeColor, RangeSettingCard, isDarkTheme)
+                            setTheme, setThemeColor, RangeSettingCard, isDarkTheme, TitleLabel)
 from qfluentwidgets import FluentIcon as FIF
 from qfluentwidgets import InfoBar
 from PySide6.QtCore import Qt, Signal, QUrl, QStandardPaths, QTimer
@@ -30,7 +30,7 @@ class SettingInterface(ScrollArea):
         self.clipboard = QApplication.clipboard()
 
         # setting label
-        self.settingLabel = QLabel(self.tr("Settings"), self)
+        self.settingLabel = TitleLabel(self.tr("Settings"), self)
 
         # download folders
         self.downloadGroup = SettingCardGroup(
