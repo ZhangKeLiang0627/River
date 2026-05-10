@@ -134,6 +134,9 @@ class MainWindow(MSFluentWindow):
         self.setWindowTitle('River')
 
         self.setMicaEffectEnabled(cfg.get(cfg.micaEnabled))
+        
+        # apply window sticky at startup
+        self.setStayOnTop(cfg.get(cfg.windowSticky))
 
         # create splash screen
         self.splashScreen = SplashScreen(self.windowIcon(), self)

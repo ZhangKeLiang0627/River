@@ -50,6 +50,7 @@ class SettingInterface(ScrollArea):
             cfg.windowSticky,
             self.behaviorGroup
         )
+        
 
         # personalization
         self.personalGroup = SettingCardGroup(

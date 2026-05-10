@@ -22,7 +22,7 @@ class BannerWidget(QWidget):
 
         self.vBoxLayout = QVBoxLayout(self)
         self.galleryLabel = QLabel('River', self)
-        self.banner = QPixmap(':/gallery/images/header1.png')
+        self.banner = QPixmap(':/gallery/images/wave_bg.png')
         self.linkCardView = LinkCardView(self)
 
         self.galleryLabel.setObjectName('galleryLabel')
