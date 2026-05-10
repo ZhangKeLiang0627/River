@@ -55,7 +55,7 @@ class Config(QConfig):
     checkUpdateAtStartUp = ConfigItem("Update", "CheckUpdateAtStartUp", True, BoolValidator())
 
     # QFluentWidgets
-    themeColor = ColorConfigItem("QFluentWidgets", "ThemeColor", '#1c5fc7')
+    themeColor = ColorConfigItem("QFluentWidgets", "ThemeColor", '#00a1ec')
 
     # behavior
     windowSticky = ConfigItem("Behavior", "WindowSticky", False, BoolValidator())
