@@ -52,27 +52,9 @@ class MainWindow(MSFluentWindow):
         self.basicInputInterface = BasicInputInterface(self)
         self.settingInterface = SettingInterface(self)
 
-        # self.dateTimeInterface = DateTimeInterface(self)
-        # self.dialogInterface = DialogInterface(self)
-        # self.layoutInterface = LayoutInterface(self)
-        # self.menuInterface = MenuInterface(self)
-        # self.materialInterface = MaterialInterface(self)
-        # self.navigationViewInterface = NavigationViewInterface(self)
-        # self.scrollInterface = ScrollInterface(self)
-        # self.statusInfoInterface = StatusInfoInterface(self)
-        # self.textInterface = TextInterface(self)
-        # self.viewInterface = ViewInterface(self)
-
         # [test]
         self.tempInterface1 = TempWidget('Home Interface', self)
         self.tempInterface2 = TempWidget('Music Interface', self)
-        self.tempInterface3 = TempWidget('Video Interface', self)
-        self.tempInterface4 = TempWidget('Setting Interface', self)
-        self.tempInterface5 = TempWidget('Album Interface', self)
-        self.tempInterface6 = TempWidget('Album Interface 1', self)
-
-        # enable acrylic effect
-        # self.navigationInterface.setAcrylicEnabled(True)
 
         self.connectSignalToSlot()
 
@@ -102,9 +84,6 @@ class MainWindow(MSFluentWindow):
         # [test]
         self.addSubInterface(self.tempInterface1, FIF.SETTING, 'Settings1', FIF.SETTING, NavigationItemPosition.SCROLL)
         self.addSubInterface(self.tempInterface2, FIF.SETTING, 'Settings2', FIF.SETTING, NavigationItemPosition.SCROLL)
-        self.addSubInterface(self.tempInterface3, FIF.SETTING, 'Settings3', FIF.SETTING, NavigationItemPosition.SCROLL)
-        self.addSubInterface(self.tempInterface4, FIF.SETTING, 'Settings4', FIF.SETTING, NavigationItemPosition.SCROLL)
-        self.addSubInterface(self.tempInterface5, FIF.SETTING, 'Settings5', FIF.SETTING, NavigationItemPosition.SCROLL)
 
         # Bottom
         self.navigationInterface.addItem(
