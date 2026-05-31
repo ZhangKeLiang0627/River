@@ -15,3 +15,8 @@ BannerWidget > #galleryLabel {
     color: white;
     padding-left: 28px;
 }
+
+#viewTitleLabel {
+    color: white;
+    font: 20px "Segoe UI SemiBold", "Microsoft YaHei", 'PingFang SC';
+}
