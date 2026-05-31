@@ -2,6 +2,7 @@
 from enum import Enum
 
 from qfluentwidgets import StyleSheetBase, Theme, isDarkTheme, qconfig
+from ..resources import resources_rc  # noqa: F401 — register Qt resources
 
 
 class StyleSheet(StyleSheetBase, Enum):

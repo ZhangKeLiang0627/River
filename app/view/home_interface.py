@@ -6,13 +6,14 @@ from pathlib import Path
 
 from PIL import Image
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QPixmap, QColor, QFont, QDragEnterEvent, QDropEvent
+from PySide6.QtGui import QPixmap, QColor, QDragEnterEvent, QDropEvent
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QLabel, QHBoxLayout, QFrame, QFileDialog,
-                               QSlider, QLineEdit, QRadioButton, QProgressBar, QButtonGroup)
+                               QButtonGroup)
 
 from qfluentwidgets import (ScrollArea, FluentIcon, PrimaryPushButton, ComboBox,
-                            PushButton, FlowLayout, ToolButton, CaptionLabel, setFont,
-                            BodyLabel, InfoBar, InfoBarPosition)
+                            PushButton, FlowLayout, ToolButton, CaptionLabel,
+                            BodyLabel, InfoBar, InfoBarPosition,
+                            RadioButton, Slider, LineEdit, ProgressBar, IconWidget)
 from ..common.config import cfg
 from ..common.style_sheet import StyleSheet
 from ..service.convert_service import (
@@ -20,6 +21,7 @@ from ..service.convert_service import (
     format_size, _normalize_format, _format_dimensions,
     ConvertWorker
 )
+
 
 # ============================================================
 # 拖拽导入区域
@@ -36,56 +38,43 @@ class DropZoneWidget(QWidget):
 
         layout = QVBoxLayout(self)
         layout.setAlignment(Qt.AlignCenter)
+        layout.setSpacing(8)
 
-        self.iconLabel = QLabel('📁', self)
-        self.iconLabel.setAlignment(Qt.AlignCenter)
-        icon_font = QFont()
-        icon_font.setPointSize(36)
-        self.iconLabel.setFont(icon_font)
+        # 使用 qfluentwidgets IconWidget 替代 emoji 文本
+        self.iconWidget = IconWidget(FluentIcon.ALBUM, self)
+        self.iconWidget.setFixedSize(64, 64)
 
         self.hintLabel = QLabel(self.tr('拖拽图片到此处，或点击选择文件'), self)
+        self.hintLabel.setObjectName('hintLabel')
         self.hintLabel.setAlignment(Qt.AlignCenter)
-        setFont(self.hintLabel, 13)
 
         self.subHintLabel = CaptionLabel(
             self.tr('支持 PNG / JPG / JPEG / GIF / BMP / WEBP 格式'), self)
+        self.subHintLabel.setObjectName('subHintLabel')
         self.subHintLabel.setAlignment(Qt.AlignCenter)
 
-        layout.addWidget(self.iconLabel)
+        layout.addWidget(self.iconWidget, 0, Qt.AlignCenter)
         layout.addWidget(self.hintLabel)
         layout.addWidget(self.subHintLabel)
 
-        self._applyStyle()
+        # 样式由 QSS 统一管理（home_interface.qss）
 
-    def _applyStyle(self):
-        self.setStyleSheet("""
-            DropZoneWidget {
-                border: 2px dashed #888;
-                border-radius: 12px;
-                background-color: rgba(128, 128, 128, 0.06);
-            }
-            DropZoneWidget:hover {
-                border-color: #00a1ec;
-                background-color: rgba(0, 161, 236, 0.08);
-            }
-        """)
+    # -------- 通过 QSS 属性选择器切换拖拽高亮 --------
+    def _updateDragState(self, active: bool):
+        self.setProperty('dragHover', active)
+        self.style().unpolish(self)
+        self.style().polish(self)
 
     def dragEnterEvent(self, event: QDragEnterEvent):
         if event.mimeData().hasUrls():
             event.acceptProposedAction()
-            self.setStyleSheet("""
-                DropZoneWidget {
-                    border: 2px dashed #00a1ec;
-                    border-radius: 12px;
-                    background-color: rgba(0, 161, 236, 0.15);
-                }
-            """)
+            self._updateDragState(True)
 
     def dragLeaveEvent(self, event):  # noqa: ARG002
-        self._applyStyle()
+        self._updateDragState(False)
 
     def dropEvent(self, event: QDropEvent):
-        self._applyStyle()
+        self._updateDragState(False)
         files = []
         for url in event.mimeData().urls():
             path = url.toLocalFile()
@@ -154,20 +143,7 @@ class ImageCard(QFrame):
         # 删除按钮放右上角
         btnRemove.move(180 - 28, 4)
 
-        self.setStyleSheet("""
-            ImageCard {
-                background-color: rgba(128, 128, 128, 0.08);
-                border-radius: 8px;
-                border: 1px solid rgba(128,128,128,0.15);
-            }
-            ImageCard:hover {
-                background-color: rgba(128, 128, 128, 0.14);
-            }
-            #thumbLabel {
-                background-color: rgba(0,0,0,0.03);
-                border-radius: 4px;
-            }
-        """)
+        # 样式由 QSS 文件统一管理 —— 详见 home_interface.qss
 
 
 # ============================================================
@@ -225,20 +201,7 @@ class ResultCard(QFrame):
         layout.addStretch()
         layout.addWidget(btnSave)
 
-        self.setStyleSheet("""
-            ResultCard {
-                background-color: rgba(128, 128, 128, 0.06);
-                border-radius: 8px;
-                border: 1px solid rgba(128,128,128,0.12);
-            }
-            ResultCard:hover {
-                background-color: rgba(128, 128, 128, 0.12);
-            }
-            #resultThumb {
-                background-color: rgba(0,0,0,0.03);
-                border-radius: 4px;
-            }
-        """)
+        # 样式由 QSS 文件统一管理 —— 详见 home_interface.qss
 
 
 # ============================================================
@@ -331,9 +294,9 @@ class HomeInterface(ScrollArea):
 
         layout.addLayout(btnLayout)
 
-        # 图片卡片流布局
+        # 图片卡片流布局（_makeSection 已带 36px 水平边距，内部不再重复）
         self.importFlowLayout = FlowLayout()
-        self.importFlowLayout.setContentsMargins(36, 0, 36, 0)
+        self.importFlowLayout.setContentsMargins(0, 0, 0, 0)
         self.importFlowLayout.setHorizontalSpacing(12)
         self.importFlowLayout.setVerticalSpacing(12)
 
@@ -444,13 +407,13 @@ class HomeInterface(ScrollArea):
         qualityLayout = QVBoxLayout(qualityWidget)
         qualityLayout.setContentsMargins(0, 0, 0, 0)
 
-        # 品质单选组
+        # 品质单选组（使用 qfluentwidgets RadioButton）
         radioRow = QHBoxLayout()
         radioRow.setSpacing(20)
 
-        self.radioQuality = QRadioButton(self.tr('按品质(%)'), qualityWidget)
+        self.radioQuality = RadioButton(self.tr('按品质(%)'), qualityWidget)
         self.radioQuality.setChecked(True)
-        self.radioSizeLimit = QRadioButton(
+        self.radioSizeLimit = RadioButton(
             self.tr('限制文件大小'), qualityWidget)
         self.qualityModeGroup = QButtonGroup(qualityWidget)
         self.qualityModeGroup.addButton(self.radioQuality, 1)
@@ -463,11 +426,11 @@ class HomeInterface(ScrollArea):
         radioRow.addStretch()
         qualityLayout.addLayout(radioRow)
 
-        # 品质滑块行
+        # 品质滑块行（使用 qfluentwidgets Slider）
         sliderRow = QHBoxLayout()
         sliderRow.setSpacing(8)
 
-        self.qualitySlider = QSlider(Qt.Horizontal, qualityWidget)
+        self.qualitySlider = Slider(Qt.Horizontal, qualityWidget)
         self.qualitySlider.setRange(1, 100)
         self.qualitySlider.setValue(85)
         self.qualitySlider.valueChanged.connect(self._onQualitySliderChanged)
@@ -494,8 +457,8 @@ class HomeInterface(ScrollArea):
 
         layout.addWidget(qualityWidget)
 
-        # 进度条
-        self.progressBar = QProgressBar(self.view)
+        # 进度条（使用 qfluentwidgets ProgressBar）
+        self.progressBar = ProgressBar(self.view)
         self.progressBar.setVisible(False)
         self.progressBar.setFixedHeight(6)
         layout.addWidget(self.progressBar)
@@ -618,8 +581,9 @@ class HomeInterface(ScrollArea):
         self.resultCountLabel = CaptionLabel('', self.resultsSection)
         layout.addWidget(self.resultCountLabel)
 
+        # 流布局位于已带 36px 边距的 section 内，内部不再重复
         self.resultsFlowLayout = FlowLayout()
-        self.resultsFlowLayout.setContentsMargins(36, 0, 36, 0)
+        self.resultsFlowLayout.setContentsMargins(0, 0, 0, 0)
         self.resultsFlowLayout.setHorizontalSpacing(12)
         self.resultsFlowLayout.setVerticalSpacing(12)
 
@@ -636,11 +600,12 @@ class HomeInterface(ScrollArea):
         self.exportSection, layout = self._makeSection(self.tr('导出'))
         self.exportSection.setVisible(False)
 
-        # 重命名前缀
+        # 重命名前缀（使用 qfluentwidgets LineEdit）
         renameRow = QHBoxLayout()
         renameRow.setSpacing(8)
         renameRow.addWidget(BodyLabel(self.tr('文件名前缀:'), self.exportSection))
-        self.prefixEdit = QLineEdit(self.tr('converted_'), self.exportSection)
+        self.prefixEdit = LineEdit(self.exportSection)
+        self.prefixEdit.setText(self.tr('converted_'))
         self.prefixEdit.setFixedWidth(200)
         renameRow.addWidget(self.prefixEdit)
         renameRow.addWidget(
