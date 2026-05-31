@@ -1,7 +1,6 @@
 # coding:utf-8
 import os
 import io
-import zipfile
 from pathlib import Path
 
 from PIL import Image
@@ -19,6 +18,7 @@ from ..common.style_sheet import StyleSheet
 from ..service.convert_service import (
     SUPPORTED_FORMATS, SIZE_LIMITS,
     format_size, _normalize_format, _format_dimensions,
+    save_result_to_path, save_all_results, save_results_as_zip,
     ConvertWorker
 )
 
@@ -703,8 +703,7 @@ class HomeInterface(ScrollArea):
             suggested,
             f"{result['target_format']} (*.{ext})")
         if save_path:
-            with open(save_path, 'wb') as f:
-                f.write(result['converted_data'])
+            save_result_to_path(result, save_path)
 
     # -------- 导出：全部 --------
     def _onSaveAll(self):
@@ -712,13 +711,7 @@ class HomeInterface(ScrollArea):
             return
         folder = self._getOutputDir()
         prefix = self._getPrefix() or 'converted_'
-        ext = self.conversion_results[0]['target_format'].lower()
-
-        for i, r in enumerate(self.conversion_results, 1):
-            name = f"{prefix}{i:03d}.{ext}"
-            path = os.path.join(folder, name)
-            with open(path, 'wb') as f:
-                f.write(r['converted_data'])
+        save_all_results(self.conversion_results, folder, prefix)
 
         InfoBar.success(
             title=self.tr('导出完成'),
@@ -747,12 +740,7 @@ class HomeInterface(ScrollArea):
             return
 
         prefix = self._getPrefix() or 'converted_'
-        ext = self.conversion_results[0]['target_format'].lower()
-
-        with zipfile.ZipFile(save_path, 'w', zipfile.ZIP_DEFLATED) as zf:
-            for i, r in enumerate(self.conversion_results, 1):
-                name = f"{prefix}{i:03d}.{ext}"
-                zf.writestr(name, r['converted_data'])
+        save_results_as_zip(self.conversion_results, save_path, prefix)
 
         InfoBar.success(
             title=self.tr('导出完成'),

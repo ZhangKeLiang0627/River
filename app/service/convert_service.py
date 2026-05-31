@@ -1,6 +1,7 @@
 # coding:utf-8
 import os
 import io
+import zipfile
 from pathlib import Path
 
 from PIL import Image
@@ -38,6 +39,40 @@ def _normalize_format(fmt: str) -> str:
 
 def _format_dimensions(w: int, h: int) -> str:
     return f"{w} × {h}"
+
+
+# ============================================================
+# 导出 / 保存结果
+def save_result_to_path(result: dict, save_path: str):
+    """将单张转换结果写入文件"""
+    with open(save_path, 'wb') as f:
+        f.write(result['converted_data'])
+
+
+def save_all_results(results: list, folder: str, prefix: str) -> list:
+    """批量保存所有转换结果到指定目录，返回保存的文件路径列表"""
+    if not results:
+        return []
+    ext = results[0]['target_format'].lower()
+    saved = []
+    for i, r in enumerate(results, 1):
+        name = f"{prefix}{i:03d}.{ext}"
+        path = os.path.join(folder, name)
+        save_result_to_path(r, path)
+        saved.append(path)
+    return saved
+
+
+def save_results_as_zip(results: list, save_path: str, prefix: str) -> str:
+    """将所有转换结果打包为 ZIP，返回 ZIP 文件路径"""
+    if not results:
+        return ''
+    ext = results[0]['target_format'].lower()
+    with zipfile.ZipFile(save_path, 'w', zipfile.ZIP_DEFLATED) as zf:
+        for i, r in enumerate(results, 1):
+            name = f"{prefix}{i:03d}.{ext}"
+            zf.writestr(name, r['converted_data'])
+    return save_path
 
 
 # ============================================================
