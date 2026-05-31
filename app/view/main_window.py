@@ -78,7 +78,7 @@ class MainWindow(MSFluentWindow):
 
         # [test] 谁在顶部，谁第一个显示
         # Top
-        self.addSubInterface(self.homeInterface, FIF.HOME, self.tr('Home'), FIF.HOME)
+        self.addSubInterface(self.homeInterface, FIF.HOME, self.tr('Convert'), FIF.HOME)
         self.addSubInterface(self.gifInterface, FIF.VIDEO, self.tr('GIF'), FIF.VIDEO)
         self.addSubInterface(self.iconInterface, Icon.EMOJI_TAB_SYMBOLS, t.icons, Icon.EMOJI_TAB_SYMBOLS)
 
