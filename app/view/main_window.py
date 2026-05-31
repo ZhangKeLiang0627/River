@@ -12,6 +12,7 @@ from qfluentwidgets import FluentIcon as FIF
 
 from .gallery_interface import GalleryInterface
 from .home_interface import HomeInterface
+from .gif_interface import GifInterface
 from .basic_input_interface import BasicInputInterface
 from .icon_interface import IconInterface
 from .setting_interface import SettingInterface
@@ -48,6 +49,7 @@ class MainWindow(MSFluentWindow):
 
         # create sub interface
         self.homeInterface = HomeInterface(self)
+        self.gifInterface = GifInterface(self)
         self.iconInterface = IconInterface(self)
         self.basicInputInterface = BasicInputInterface(self)
         self.settingInterface = SettingInterface(self)
@@ -77,6 +79,7 @@ class MainWindow(MSFluentWindow):
         # [test] 谁在顶部，谁第一个显示
         # Top
         self.addSubInterface(self.homeInterface, FIF.HOME, self.tr('Home'), FIF.HOME)
+        self.addSubInterface(self.gifInterface, FIF.VIDEO, self.tr('GIF'), FIF.VIDEO)
         self.addSubInterface(self.iconInterface, Icon.EMOJI_TAB_SYMBOLS, t.icons, Icon.EMOJI_TAB_SYMBOLS)
 
         # Scroll

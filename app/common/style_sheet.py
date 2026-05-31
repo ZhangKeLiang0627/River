@@ -11,6 +11,7 @@ class StyleSheet(StyleSheetBase, Enum):
     LINK_CARD = "link_card"
     SAMPLE_CARD = "sample_card"
     HOME_INTERFACE = "home_interface"
+    GIF_INTERFACE = "gif_interface"
     ICON_INTERFACE = "icon_interface"
     VIEW_INTERFACE = "view_interface"
     SETTING_INTERFACE = "setting_interface"
