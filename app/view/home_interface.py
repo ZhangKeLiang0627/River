@@ -247,8 +247,9 @@ class HomeInterface(ScrollArea):
     # -------- 工具：创建区段标题 --------
     def _makeSection(self, title: str):
         w = QWidget(self.view)
+        w.setObjectName('sectionWidget')
         layout = QVBoxLayout(w)
-        layout.setContentsMargins(36, 0, 36, 0)
+        layout.setContentsMargins(36, 24, 36, 24)
         layout.setSpacing(12)
         titleLabel = QLabel(title, w)
         titleLabel.setObjectName('viewTitleLabel')
@@ -403,19 +404,19 @@ class HomeInterface(ScrollArea):
         layout.addLayout(fmtRow)
 
         # 品质设置
-        qualityWidget = QWidget(self.view)
-        qualityLayout = QVBoxLayout(qualityWidget)
+        self.qualityWidget = QWidget(self.view)
+        qualityLayout = QVBoxLayout(self.qualityWidget)
         qualityLayout.setContentsMargins(0, 0, 0, 0)
 
         # 品质单选组（使用 qfluentwidgets RadioButton）
         radioRow = QHBoxLayout()
         radioRow.setSpacing(20)
 
-        self.radioQuality = RadioButton(self.tr('按品质(%)'), qualityWidget)
+        self.radioQuality = RadioButton(self.tr('按品质(%)'), self.qualityWidget)
         self.radioQuality.setChecked(True)
         self.radioSizeLimit = RadioButton(
-            self.tr('限制文件大小'), qualityWidget)
-        self.qualityModeGroup = QButtonGroup(qualityWidget)
+            self.tr('限制文件大小'), self.qualityWidget)
+        self.qualityModeGroup = QButtonGroup(self.qualityWidget)
         self.qualityModeGroup.addButton(self.radioQuality, 1)
         self.qualityModeGroup.addButton(self.radioSizeLimit, 2)
         self.qualityModeGroup.buttonClicked.connect(
@@ -430,32 +431,32 @@ class HomeInterface(ScrollArea):
         sliderRow = QHBoxLayout()
         sliderRow.setSpacing(8)
 
-        self.qualitySlider = Slider(Qt.Horizontal, qualityWidget)
+        self.qualitySlider = Slider(Qt.Horizontal, self.qualityWidget)
         self.qualitySlider.setRange(1, 100)
         self.qualitySlider.setValue(85)
         self.qualitySlider.valueChanged.connect(self._onQualitySliderChanged)
-        self.qualityValueLabel = BodyLabel('85%', qualityWidget)
+        self.qualityValueLabel = BodyLabel('85%', self.qualityWidget)
 
         sliderRow.addWidget(self.qualitySlider)
         sliderRow.addWidget(self.qualityValueLabel)
         qualityLayout.addLayout(sliderRow)
 
         # 大小限制下拉
-        self.sizeLimitWidget = QWidget(qualityWidget)
+        self.sizeLimitWidget = QWidget(self.qualityWidget)
         sizeLimitRow = QHBoxLayout(self.sizeLimitWidget)
         sizeLimitRow.setSpacing(8)
-        self.cboSizeLimit = ComboBox(qualityWidget)
+        self.cboSizeLimit = ComboBox(self.qualityWidget)
         self.cboSizeLimit.addItems([label for label, _ in SIZE_LIMITS])
         self.cboSizeLimit.setCurrentIndex(0)
         self.cboSizeLimit.setMinimumWidth(160)
         sizeLimitRow.addWidget(CaptionLabel(
-            self.tr('上限:'), qualityWidget))
+            self.tr('上限:'), self.qualityWidget))
         sizeLimitRow.addWidget(self.cboSizeLimit)
         sizeLimitRow.addStretch()
         self.sizeLimitWidget.setVisible(False)
         qualityLayout.addWidget(self.sizeLimitWidget)
 
-        layout.addWidget(qualityWidget)
+        layout.addWidget(self.qualityWidget)
 
         # 进度条（使用 qfluentwidgets ProgressBar）
         self.progressBar = ProgressBar(self.view)
@@ -472,13 +473,13 @@ class HomeInterface(ScrollArea):
 
         self.vBoxLayout.addWidget(section)
 
+        # 初始隐藏品质设置（默认格式 PNG 不支持品质控制）
+        self._onFormatChanged('PNG')
+
     def _onFormatChanged(self, fmt: str):
         norm = _normalize_format(fmt)
         can_control = norm in ('JPEG', 'WEBP')
-        self.radioQuality.setEnabled(can_control)
-        self.radioSizeLimit.setEnabled(can_control)
-        self.qualitySlider.setEnabled(can_control)
-        self.cboSizeLimit.setEnabled(can_control)
+        self.qualityWidget.setVisible(can_control)
         if not can_control:
             self.radioQuality.setChecked(True)
 
@@ -543,6 +544,7 @@ class HomeInterface(ScrollArea):
 
         self.resultsSection.setVisible(True)
         self.exportSection.setVisible(True)
+        self.btnClearResults.setVisible(True)
 
     def _onAllFinished(self, results: list):
         self.btnConvert.setEnabled(True)
@@ -571,6 +573,18 @@ class HomeInterface(ScrollArea):
             card.deleteLater()
         self.result_cards.clear()
 
+    def _onClearResults(self):
+        """清空所有转换结果并隐藏相关区段"""
+        self._clearResults()
+        self.resultsSection.setVisible(False)
+        self.exportSection.setVisible(False)
+        self.btnClearResults.setVisible(False)
+        self.btnConvert.setEnabled(True)
+        self.btnConvert.setText(self.tr('开始转换'))
+        self.progressBar.setRange(0, 0)
+        self.progressBar.setValue(0)
+        self._worker = None
+
     # ============================================================
     # 4）结果展示区
     # ============================================================
@@ -578,8 +592,21 @@ class HomeInterface(ScrollArea):
         self.resultsSection, layout = self._makeSection(self.tr('转换结果'))
         self.resultsSection.setVisible(False)
 
+        # 计数标签 + 清空按钮
+        resultHeaderLayout = QHBoxLayout()
+        resultHeaderLayout.setSpacing(8)
         self.resultCountLabel = CaptionLabel('', self.resultsSection)
-        layout.addWidget(self.resultCountLabel)
+        resultHeaderLayout.addWidget(self.resultCountLabel)
+
+        self.btnClearResults = PushButton(
+            self.tr('清空结果'), self.resultsSection, icon=FluentIcon.CLOSE)
+        # self.btnClearResults.setFixedWidth(120)
+        self.btnClearResults.clicked.connect(self._onClearResults)
+        self.btnClearResults.setVisible(False)
+        resultHeaderLayout.addWidget(self.btnClearResults)
+
+        resultHeaderLayout.addStretch()
+        layout.addLayout(resultHeaderLayout)
 
         # 流布局位于已带 36px 边距的 section 内，内部不再重复
         self.resultsFlowLayout = FlowLayout()
