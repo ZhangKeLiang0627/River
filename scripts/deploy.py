@@ -130,11 +130,11 @@ def _rename_output(src_name: str, dst_name: str, kind: str) -> Path:
         if dst.exists():
             shutil.rmtree(dst)
         shutil.move(str(src), str(dst))
-        print(f"  → Renamed {src.name} → {dst.name}")
+        print(f"  + Renamed {src.name} -> {dst.name}")
     elif dst.exists():
-        print(f"  ✓ {dst.name} already exists")
+        print(f"  + {dst.name} already exists")
     else:
-        print(f"  ⚠️  {src.name} not found — Nuitka may have used a different name")
+        print(f"  + {src.name} not found -- Nuitka may have used a different name")
     return dst
 
 
@@ -174,11 +174,11 @@ def _report_paths():
     for pattern in (f"{APP_NAME}.dist", f"{APP_NAME}.app"):
         p = DIST_DIR / pattern
         if p.exists():
-            print(f"  ✅ {p}")
+            print(f"  [OK] {p}")
             if p.is_dir():
                 for child in sorted(p.iterdir()):
                     if child.is_file() and not child.name.endswith((".py", ".pyc")):
-                        print(f"      └─ {child.name}")
+                        print(f"      - {child.name}")
 
 
 # ---------------------------------------------------------------------------
