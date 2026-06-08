@@ -55,12 +55,11 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --timeout=300 -r requirements.txt
-          pip install nuitka
 
       - name: Extract version
         shell: pwsh
         run: |
-          python -c "from app.common.config import Config; f = open('version.txt', 'w'); f.write(Config.appVersion); f.close()"
+          python -c "from app.common.config import cfg; f = open('version.txt', 'w'); f.write(cfg.appVersion); f.close()"
           $VERSION = Get-Content version.txt -Raw | ForEach-Object { $_.Trim() }
           echo "VERSION=$VERSION" >> $env:GITHUB_ENV
           Remove-Item version.txt
@@ -72,7 +71,7 @@ jobs:
 
       - name: Build with Nuitka
         run: |
-          python deploy.py
+          python scripts/deploy.py
 
       - name: Download Inno Setup Translation Files
         if: ${{ github.event_name == 'release' || github.event.inputs.package_installer == 'true' }}
@@ -99,7 +98,7 @@ jobs:
           name: River-v${{ env.VERSION }}-Windows-${{ matrix.architecture }}-Setup
           path: dist/River-v${{ env.VERSION }}-Windows-${{ matrix.architecture }}-Setup.exe
 
-      - name: Create zip file (release only)
+      - name: Create zip and rename installer (release only)
         if: ${{ github.event_name == 'release' }}
         shell: pwsh
         run: |
@@ -107,6 +106,14 @@ jobs:
           $zipFile = "River-v${{ env.VERSION }}-Windows-${{ matrix.architecture }}.zip"
           7z a -tzip -mx=9 -m0=LZMA $zipFile "$distPath\*"
           Write-Output "Zip created: $zipFile"
+
+          # Rename installer to include architecture for multi-arch release
+          $setupExe = "dist/River-v${{ env.VERSION }}-Windows-Setup.exe"
+          $archSetupExe = "dist/River-v${{ env.VERSION }}-Windows-${{ matrix.architecture }}-Setup.exe"
+          if (Test-Path $setupExe) {
+            Move-Item -Path $setupExe -Destination $archSetupExe -Force
+            Write-Output "Installer renamed: $archSetupExe"
+          }
 
       - name: Upload artifacts (workflow_dispatch)
         if: ${{ github.event_name == 'workflow_dispatch' }}
@@ -150,22 +157,17 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --timeout=300 -r requirements.txt
-          pip install nuitka
 
       - name: Extract version
         run: |
-          python3 -c "from app.common.config import Config; print(Config.appVersion)" > version.txt
+          python3 -c "from app.common.config import cfg; print(cfg.appVersion)" > version.txt
           VERSION=$(cat version.txt)
           echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
           rm version.txt
 
       - name: Build with Nuitka
         run: |
-          python3 deploy.py
-          # Rename app bundle for DMG (remove spaces for simplicity)
-          if [ -d "dist/${{ env.APP_NAME }}.app" ]; then
-            mv "dist/${{ env.APP_NAME }}.app" "dist/${{ env.PROJECT_NAME }}.app"
-          fi
+          python3 scripts/deploy.py
 
       - name: Install DMG tooling
         run: |
@@ -175,10 +177,19 @@ jobs:
         run: |
           DMG_NAME="River-v${{ env.VERSION }}-macOS-${{ matrix.architecture }}.dmg"
           DMG_SOURCE_DIR="dist/dmg-layout"
+          APP_BUNDLE="dist/${{ env.APP_NAME }}.app"
 
           rm -rf "$DMG_SOURCE_DIR"
           mkdir -p "$DMG_SOURCE_DIR"
-          cp -R "dist/${{ env.PROJECT_NAME }}.app" "$DMG_SOURCE_DIR/"
+
+          if [ -d "$APP_BUNDLE" ]; then
+            cp -R "$APP_BUNDLE" "$DMG_SOURCE_DIR/"
+          else
+            echo "❌ App bundle not found at $APP_BUNDLE"
+            ls -la dist/
+            exit 1
+          fi
+
           find "$DMG_SOURCE_DIR" -name ".DS_Store" -delete
 
           # Build DMG — skip background if file doesn't exist
@@ -195,8 +206,8 @@ jobs:
             --window-size 664 404 \
             --icon-size 72 \
             --text-size 14 \
-            --icon "River.app" 190 200 \
-            --hide-extension "River.app" \
+            --icon "${{ env.APP_NAME }}.app" 190 200 \
+            --hide-extension "${{ env.APP_NAME }}.app" \
             --app-drop-link 370 200 \
             --hdiutil-quiet \
             --hdiutil-retries 10 \
@@ -249,18 +260,17 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y desktop-file-utils libegl1-mesa-dev
           pip install --timeout=300 -r requirements.txt
-          pip install nuitka
 
       - name: Extract version
         run: |
-          python3 -c "from app.common.config import Config; print(Config.appVersion)" > version.txt
+          python3 -c "from app.common.config import cfg; print(cfg.appVersion)" > version.txt
           VERSION=$(cat version.txt)
           echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
           rm version.txt
 
       - name: Build with Nuitka
         run: |
-          python3 deploy.py
+          python3 scripts/deploy.py
 
       - name: Build .deb and .AppImage
         run: |
