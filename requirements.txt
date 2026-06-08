@@ -2,6 +2,8 @@
 # River — Runtime Dependencies
 # ============================================================
 PySide6>=6.5.0
-qfluentwidgets>=1.5.0
-Pillow>=10.0.0
 numpy>=1.24.0
+PySide6>=6.11.0
+PySide6-Fluent-Widgets>=1.11.2
+Pillow>=12.2.0
+nuitka>=4.0.8

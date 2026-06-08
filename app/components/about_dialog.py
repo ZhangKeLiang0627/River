@@ -22,7 +22,7 @@ class AboutDialog(MessageBoxBase):
         self.appVersionLabel = BodyLabel(self.tr("Version {app_version}").format(app_version = appVersion), self)
         self.qtVersionLabel = BodyLabel(self.tr("Powered by Qt {qt_version} and QFluentWidgets {qfluentwidgets_version}").format(qt_version = qVersion(), qfluentwidgets_version = __version__), self)
         self.licenseLabel = BodyLabel(self.tr("This software is free and open-source, licensed under the GNU General Public License v3 (GPLv3)."))
-        self.copyrightLabel = BodyLabel(self.tr("Copyright © 2025-{year} Scott Sloan. All Rights Reserved.").format(year = year))
+        self.copyrightLabel = BodyLabel(self.tr("Copyright © 2025-{year} kkl. All Rights Reserved.").format(year = year))
         self.sponsorLabel = BodyLabel(self.tr("If this project saved you time or solved your problem, consider buying the author a coffee! Don't forget to star the repository on GitHub to support open-source development."))
         self.sponsorLabel.setWordWrap(True)
 
