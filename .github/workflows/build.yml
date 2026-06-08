@@ -1,0 +1,375 @@
+name: Build / Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_target:
+        description: 'Build Target'
+        required: true
+        default: 'windows'
+        type: choice
+        options:
+          - 'windows'
+          - 'macos'
+          - 'linux'
+          - 'all'
+      package_installer:
+        description: 'Package Installer'
+        required: true
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+  release:
+    types: [ published ]
+
+permissions:
+  contents: write
+
+env:
+  APP_NAME: RIVER
+  PROJECT_NAME: River
+
+jobs:
+  # ============================================================
+  # Windows
+  # ============================================================
+  build-windows:
+    if: ${{ github.event_name == 'release' || github.event.inputs.build_target == 'windows' || github.event.inputs.build_target == 'all' }}
+    strategy:
+      matrix:
+        architecture: [ x86_64, arm64 ]
+    runs-on: windows-2022
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install --timeout=300 -r requirements.txt
+          pip install nuitka
+
+      - name: Extract version
+        shell: pwsh
+        run: |
+          python -c "from app.common.config import Config; f = open('version.txt', 'w'); f.write(Config.appVersion); f.close()"
+          $VERSION = Get-Content version.txt -Raw | ForEach-Object { $_.Trim() }
+          echo "VERSION=$VERSION" >> $env:GITHUB_ENV
+          Remove-Item version.txt
+
+          # Patch Inno Setup script with version
+          $iss = Get-Content 'river.iss' -Raw
+          $iss = $iss -replace 'APPLICATION_VERSION', $VERSION
+          Set-Content 'river.iss' $iss
+
+      - name: Build with Nuitka
+        run: |
+          python deploy.py
+
+      - name: Download Inno Setup Translation Files
+        if: ${{ github.event_name == 'release' || github.event.inputs.package_installer == 'true' }}
+        run: |
+          Invoke-WebRequest -Uri "https://raw.githubusercontent.com/jrsoftware/issrc/main/Files/Languages/Unofficial/ChineseSimplified.isl" -OutFile "$env:ProgramFiles\Inno Setup 6\Languages\ChineseSimplified.isl"
+          Invoke-WebRequest -Uri "https://raw.githubusercontent.com/jrsoftware/issrc/main/Files/Languages/Unofficial/ChineseTraditional.isl" -OutFile "$env:ProgramFiles\Inno Setup 6\Languages\ChineseTraditional.isl"
+
+      - name: Build Installer
+        if: ${{ github.event_name == 'release' || github.event.inputs.package_installer == 'true' }}
+        uses: Minionguyjpro/Inno-Setup-Action@v1.2.5
+        with:
+          path: river.iss
+
+      - name: Rename Installer for multi-arch
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.package_installer == 'true' }}
+        shell: pwsh
+        run: |
+          mv dist/River-v${{ env.VERSION }}-Windows-Setup.exe dist/River-v${{ env.VERSION }}-Windows-${{ matrix.architecture }}-Setup.exe
+
+      - name: Upload Installer
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.package_installer == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: River-v${{ env.VERSION }}-Windows-${{ matrix.architecture }}-Setup
+          path: dist/River-v${{ env.VERSION }}-Windows-${{ matrix.architecture }}-Setup.exe
+
+      - name: Create zip file (release only)
+        if: ${{ github.event_name == 'release' }}
+        shell: pwsh
+        run: |
+          $distPath = "dist/${{ env.APP_NAME }}.dist"
+          $zipFile = "River-v${{ env.VERSION }}-Windows-${{ matrix.architecture }}.zip"
+          7z a -tzip -mx=9 -m0=LZMA $zipFile "$distPath\*"
+          Write-Output "Zip created: $zipFile"
+
+      - name: Upload artifacts (workflow_dispatch)
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: River-v${{ env.VERSION }}-Windows-${{ matrix.architecture }}
+          path: dist/${{ env.APP_NAME }}.dist
+
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        if: ${{ github.event_name == 'release' && startsWith(github.ref, 'refs/tags/') }}
+        with:
+          files: |
+            River-v${{ env.VERSION }}-Windows-${{ matrix.architecture }}.zip
+            dist/River-v${{ env.VERSION }}-Windows-${{ matrix.architecture }}-Setup.exe
+
+  # ============================================================
+  # macOS
+  # ============================================================
+  build-macos:
+    if: ${{ github.event_name == 'release' || github.event.inputs.build_target == 'macos' || github.event.inputs.build_target == 'all' }}
+    strategy:
+      matrix:
+        include:
+          - architecture: arm64
+            runner: macos-14
+          - architecture: x86_64
+            runner: macos-13
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install --timeout=300 -r requirements.txt
+          pip install nuitka
+
+      - name: Extract version
+        run: |
+          python3 -c "from app.common.config import Config; print(Config.appVersion)" > version.txt
+          VERSION=$(cat version.txt)
+          echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
+          rm version.txt
+
+      - name: Build with Nuitka
+        run: |
+          python3 deploy.py
+          # Rename app bundle for DMG (remove spaces for simplicity)
+          if [ -d "dist/${{ env.APP_NAME }}.app" ]; then
+            mv "dist/${{ env.APP_NAME }}.app" "dist/${{ env.PROJECT_NAME }}.app"
+          fi
+
+      - name: Install DMG tooling
+        run: |
+          brew list create-dmg >/dev/null 2>&1 || brew install create-dmg
+
+      - name: Create DMG
+        run: |
+          DMG_NAME="River-v${{ env.VERSION }}-macOS-${{ matrix.architecture }}.dmg"
+          DMG_SOURCE_DIR="dist/dmg-layout"
+
+          rm -rf "$DMG_SOURCE_DIR"
+          mkdir -p "$DMG_SOURCE_DIR"
+          cp -R "dist/${{ env.PROJECT_NAME }}.app" "$DMG_SOURCE_DIR/"
+          find "$DMG_SOURCE_DIR" -name ".DS_Store" -delete
+
+          # Build DMG — skip background if file doesn't exist
+          BG="app/resources/images/header.png"
+          DMG_OPTS=()
+          if [ -f "$BG" ]; then
+            DMG_OPTS+=(--background "$BG")
+          fi
+
+          create-dmg \
+            --volname "River" \
+            "${DMG_OPTS[@]}" \
+            --window-pos 200 120 \
+            --window-size 664 404 \
+            --icon-size 72 \
+            --text-size 14 \
+            --icon "River.app" 190 200 \
+            --hide-extension "River.app" \
+            --app-drop-link 370 200 \
+            --hdiutil-quiet \
+            --hdiutil-retries 10 \
+            "$DMG_NAME" \
+            "$DMG_SOURCE_DIR"
+
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        if: ${{ github.event_name == 'release' && startsWith(github.ref, 'refs/tags/') }}
+        with:
+          files: River-v${{ env.VERSION }}-macOS-${{ matrix.architecture }}.dmg
+
+      - name: Upload artifacts
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: River-v${{ env.VERSION }}-macOS-${{ matrix.architecture }}
+          path: River-v${{ env.VERSION }}-macOS-${{ matrix.architecture }}.dmg
+
+  # ============================================================
+  # Linux (Ubuntu)
+  # ============================================================
+  build-ubuntu:
+    if: ${{ github.event_name == 'release' || github.event.inputs.build_target == 'linux' || github.event.inputs.build_target == 'all' }}
+    strategy:
+      matrix:
+        include:
+          - architecture: x86_64
+            runner: ubuntu-22.04
+            deb_arch: amd64
+            appimage_arch: x86_64
+          - architecture: arm64
+            runner: ubuntu-24.04-arm
+            deb_arch: arm64
+            appimage_arch: aarch64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y desktop-file-utils libegl1-mesa-dev
+          pip install --timeout=300 -r requirements.txt
+          pip install nuitka
+
+      - name: Extract version
+        run: |
+          python3 -c "from app.common.config import Config; print(Config.appVersion)" > version.txt
+          VERSION=$(cat version.txt)
+          echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
+          rm version.txt
+
+      - name: Build with Nuitka
+        run: |
+          python3 deploy.py
+
+      - name: Build .deb and .AppImage
+        run: |
+          DIST_DIR="dist/${{ env.APP_NAME }}.dist"
+          DEB_ROOT="$RUNNER_TEMP/deb-root"
+          APPDIR="$RUNNER_TEMP/River.AppDir"
+          PACKAGE_NAME="river"
+          INSTALL_DIR="/opt/River"
+          DESKTOP_FILE="$PACKAGE_NAME.desktop"
+          ICON_FILE="$PACKAGE_NAME.png"
+          DEB_FILE="dist/River-v${{ env.VERSION }}-Linux-${{ matrix.architecture }}.deb"
+          APPIMAGE_FILE="dist/River-v${{ env.VERSION }}-Linux-${{ matrix.architecture }}.AppImage"
+          APPIMAGETOOL_FILE="appimagetool-${{ matrix.appimage_arch }}.AppImage"
+          APPIMAGETOOL_URL="https://github.com/AppImage/appimagetool/releases/latest/download/${APPIMAGETOOL_FILE}"
+
+          rm -rf "$DEB_ROOT" "$APPDIR" "$RUNNER_TEMP/squashfs-root"
+          mkdir -p \
+            "$DEB_ROOT/DEBIAN" \
+            "$DEB_ROOT$INSTALL_DIR" \
+            "$DEB_ROOT/usr/bin" \
+            "$DEB_ROOT/usr/share/applications" \
+            "$DEB_ROOT/usr/share/icons/hicolor/256x256/apps" \
+            "$APPDIR/usr/bin" \
+            "$APPDIR/usr/lib/$PACKAGE_NAME" \
+            "$APPDIR/usr/share/applications" \
+            "$APPDIR/usr/share/icons/hicolor/256x256/apps"
+
+          cp -R "$DIST_DIR"/. "$DEB_ROOT$INSTALL_DIR/"
+          cp -R "$DIST_DIR"/. "$APPDIR/usr/lib/$PACKAGE_NAME/"
+
+          ln -s "$INSTALL_DIR/${{ env.APP_NAME }}.bin" "$DEB_ROOT/usr/bin/$PACKAGE_NAME"
+          ln -s "../lib/$PACKAGE_NAME/${{ env.APP_NAME }}.bin" "$APPDIR/usr/bin/$PACKAGE_NAME"
+          ln -s "usr/bin/$PACKAGE_NAME" "$APPDIR/AppRun"
+
+          cat > "$DEB_ROOT/DEBIAN/control" <<EOF
+          Package: $PACKAGE_NAME
+          Version: ${{ env.VERSION }}
+          Section: net
+          Priority: optional
+          Architecture: ${{ matrix.deb_arch }}
+          Maintainer: kkl <XiaoYouChR@qq.com>
+          Description: River
+           A icon generator and image processing tool based on PySide6.
+          EOF
+
+          cat > "$DEB_ROOT/usr/share/applications/$DESKTOP_FILE" <<EOF
+          [Desktop Entry]
+          Type=Application
+          Name=River
+          Comment=A icon generator and image processing tool based on PySide6
+          Exec=$PACKAGE_NAME
+          Icon=$PACKAGE_NAME
+          Terminal=false
+          Categories=Graphics;Utility;
+          StartupNotify=false
+          EOF
+
+          cp "$DEB_ROOT/usr/share/applications/$DESKTOP_FILE" "$APPDIR/usr/share/applications/$DESKTOP_FILE"
+          cp "app/resources/images/logo.png" "$DEB_ROOT/usr/share/icons/hicolor/256x256/apps/$ICON_FILE"
+          cp "app/resources/images/logo.png" "$APPDIR/usr/share/icons/hicolor/256x256/apps/$ICON_FILE"
+
+          ln -s "usr/share/applications/$DESKTOP_FILE" "$APPDIR/$DESKTOP_FILE"
+          ln -s "usr/share/icons/hicolor/256x256/apps/$ICON_FILE" "$APPDIR/$ICON_FILE"
+          ln -s "usr/share/icons/hicolor/256x256/apps/$ICON_FILE" "$APPDIR/.DirIcon"
+
+          desktop-file-validate "$DEB_ROOT/usr/share/applications/$DESKTOP_FILE"
+          dpkg-deb --build --root-owner-group "$DEB_ROOT" "$DEB_FILE"
+
+          curl -fL "$APPIMAGETOOL_URL" -o "$RUNNER_TEMP/$APPIMAGETOOL_FILE"
+          chmod +x "$RUNNER_TEMP/$APPIMAGETOOL_FILE"
+          (
+            cd "$RUNNER_TEMP"
+            "./$APPIMAGETOOL_FILE" --appimage-extract >/dev/null
+            ARCH="${{ matrix.appimage_arch }}" \
+              ./squashfs-root/AppRun \
+              --no-appstream \
+              "$APPDIR" \
+              "$GITHUB_WORKSPACE/$APPIMAGE_FILE"
+          )
+          chmod +x "$APPIMAGE_FILE"
+
+          dpkg-deb --info "$DEB_FILE"
+          file "$APPIMAGE_FILE"
+
+      - name: Tar the contents (release only)
+        if: ${{ github.event_name == 'release' }}
+        shell: pwsh
+        run: |
+          $distPath = "dist/${{ env.APP_NAME }}.dist"
+          $tarFile = "River-v${{ env.VERSION }}-Linux-${{ matrix.architecture }}.tar.xz"
+          Write-Output "Creating tar.xz archive of $distPath..."
+          tar -cJf $tarFile -C $distPath .
+          Write-Output "Archive created: $tarFile"
+
+      - name: Upload artifacts
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: River-v${{ env.VERSION }}-Linux-${{ matrix.architecture }}
+          path: |
+            dist/${{ env.APP_NAME }}.dist
+            dist/River-v${{ env.VERSION }}-Linux-${{ matrix.architecture }}.deb
+            dist/River-v${{ env.VERSION }}-Linux-${{ matrix.architecture }}.AppImage
+
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        if: ${{ github.event_name == 'release' && startsWith(github.ref, 'refs/tags/') }}
+        with:
+          files: |
+            River-v${{ env.VERSION }}-Linux-${{ matrix.architecture }}.tar.xz
+            dist/River-v${{ env.VERSION }}-Linux-${{ matrix.architecture }}.deb
+            dist/River-v${{ env.VERSION }}-Linux-${{ matrix.architecture }}.AppImage
