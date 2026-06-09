@@ -224,3 +224,4 @@ config.json
 download/
 build/
 dist/
+memory/
