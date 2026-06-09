@@ -287,10 +287,7 @@ jobs:
     strategy:
       matrix:
         include:
-          - arch: x86_64
-            os: macos-13
-            python_arch: x64
-          - arch: aarch64
+          - arch: arm64
             os: macos-latest
             python_arch: arm64
     runs-on: ${{ matrix.os }}
@@ -305,12 +302,6 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           architecture: ${{ matrix.python_arch }}
-
-      - name: Remove problematic brew libs (x86_64 workaround)
-        if: ${{ matrix.arch == 'x86_64' }}
-        run: |
-          brew remove --force --ignore-dependencies openssl@3 2>/dev/null || true
-          brew cleanup openssl@3 2>/dev/null || true
 
       - name: Install system dependencies
         run: brew install create-dmg
@@ -337,11 +328,6 @@ jobs:
             rm -rf "dist/main.build" 2>/dev/null || true
             rm -rf "dist/main.dist" 2>/dev/null || true
           fi
-
-      - name: Reinstall openssl libs (x86_64 workaround)
-        if: ${{ matrix.arch == 'x86_64' }}
-        run: |
-          brew install openssl@3 2>/dev/null || true
 
       - name: Package .dmg
         run: |
