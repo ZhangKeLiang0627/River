@@ -99,8 +99,14 @@ jobs:
       - name: Build Installer with Inno Setup
         shell: pwsh
         run: |
-          # Replace version placeholder and translation file URLs
+          # Replace version placeholder
           (Get-Content River.iss) -replace 'APPLICATION_VERSION', "$env:VERSION" | Set-Content River.iss
+
+          # Download Chinese language files before compiling
+          $issLangDir = "C:\Program Files (x86)\Inno Setup 6\Languages"
+          Write-Host "Downloading translation files to: $issLangDir"
+          Invoke-WebRequest -Uri "https://raw.githubusercontent.com/jrsoftware/issrc/main/Files/Languages/Unofficial/ChineseSimplified.isl" -OutFile "$issLangDir\ChineseSimplified.isl"
+          Invoke-WebRequest -Uri "https://raw.githubusercontent.com/jrsoftware/issrc/main/Files/Languages/Unofficial/ChineseTraditional.isl" -OutFile "$issLangDir\ChineseTraditional.isl"
 
           # Try to find iscc.exe
           $isccPaths = @(
@@ -254,8 +260,8 @@ jobs:
 
           cp "app/resources/images/logo.png" "$DEB_ROOT/usr/share/icons/hicolor/256x256/apps/$PACKAGE_NAME.png" 2>/dev/null || true
 
-          dpkg-deb --build --root-owner-group "$DEB_ROOT" "dist/River_${VERSION_NAME}_linux_${matrix.arch}.deb"
-          echo "DEB_FILE=dist/River_${VERSION_NAME}_linux_${matrix.arch}.deb" >> $GITHUB_ENV
+          dpkg-deb --build --root-owner-group "$DEB_ROOT" "dist/River_${VERSION_NAME}_linux_${{ matrix.arch }}.deb"
+          echo "DEB_FILE=dist/River_${VERSION_NAME}_linux_${{ matrix.arch }}.deb" >> $GITHUB_ENV
 
       - name: Upload .deb artifact
         if: ${{ matrix.arch == 'amd64' }}
@@ -266,8 +272,8 @@ jobs:
 
       - name: Package portable tar.gz
         run: |
-          mv dist/main.dist "River_${VERSION_NAME}_linux_${matrix.arch}"
-          tar -czf "River_${VERSION_NAME}_linux_${matrix.arch}_portable.tar.gz" "River_${VERSION_NAME}_linux_${matrix.arch}"
+          mv dist/main.dist "River_${VERSION_NAME}_linux_${{ matrix.arch }}"
+          tar -czf "River_${VERSION_NAME}_linux_${{ matrix.arch }}_portable.tar.gz" "River_${VERSION_NAME}_linux_${{ matrix.arch }}"
 
       - name: Upload portable artifact
         uses: actions/upload-artifact@v6
