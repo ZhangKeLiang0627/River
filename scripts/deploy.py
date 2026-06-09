@@ -50,6 +50,11 @@ META = {
 # ---------------------------------------------------------------------------
 PLATFORM_INCLUDE_PACKAGES: dict[str, list[str]] = {}
 
+# Packages with pre-compiled C extensions that Nuitka must NOT re-compile.
+# Nuitka will skip following their imports; we manually copy them from
+# site-packages into the output during _post_build().
+NOFOLLOW_PACKAGES = ["qfluentwidgets"]
+
 
 def build_include_args() -> list[str]:
     pkgs = list(PLATFORM_INCLUDE_PACKAGES.get(sys.platform, []))
@@ -88,6 +93,12 @@ def build_args() -> list[str]:
     # Extra packages the bundler might miss
     args.extend(build_include_args())
 
+    # Packages with C extensions that fail under Nuitka re-compilation
+    # (e.g. qfluentwidgets on MSVC).  Nuitka skips them; we copy the
+    # original package verbatim in _post_build().
+    for pkg in NOFOLLOW_PACKAGES:
+        args.append(f"--nofollow-import-to={pkg}")
+
     # Convenience
     args.append("--assume-yes-for-downloads")
 
@@ -125,6 +136,13 @@ def build_args() -> list[str]:
     return args
 
 
+def _out_dir() -> Path:
+    """Return the output directory (the .dist or .app internal Contents)."""
+    if sys.platform == "darwin":
+        return DIST_DIR / f"{APP_NAME}.app" / "Contents" / "MacOS"
+    return DIST_DIR / f"{APP_NAME}.dist"
+
+
 def _rename_output(src_name: str, dst_name: str, kind: str) -> Path:
     """Rename Nuitka output directory from src_name to dst_name.
 
@@ -145,6 +163,42 @@ def _rename_output(src_name: str, dst_name: str, kind: str) -> Path:
     return dst
 
 
+def _copy_nofollow_packages():
+    """Copy nofollow packages from site-packages into the output directory.
+
+    Nuitka's ``--nofollow-import-to`` prevents compilation but also
+    excludes the package entirely.  We ship the original installed
+    package verbatim instead.
+    """
+    out = _out_dir()
+    if not out.exists():
+        return
+
+    import importlib  # noqa: E402
+
+    for pkg_name in NOFOLLOW_PACKAGES:
+        try:
+            mod = importlib.import_module(pkg_name)
+        except ImportError:
+            print(f"  ~ {pkg_name} not installed, skipping")
+            continue
+
+        pkg_file = Path(mod.__file__)
+        src_dir = pkg_file.parent if pkg_file.name == "__init__.py" else pkg_file
+        dst_dir = out / pkg_name
+
+        if dst_dir.exists():
+            shutil.rmtree(dst_dir)
+
+        # Copy the entire package directory (copies tree, following symlinks)
+        shutil.copytree(str(src_dir), str(dst_dir),
+                        ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
+                        symlinks=True)
+
+        size = sum(f.stat().st_size for f in dst_dir.rglob("*") if f.is_file())
+        print(f"  + Copied {pkg_name} ({size / 1024:.0f} KB) -> {dst_dir.relative_to(out)}")
+
+
 def _post_build():
     """Post-build cleanup and standardisation across platforms.
 
@@ -153,11 +207,12 @@ def _post_build():
     predictable CI artifact paths.
     """
     if sys.platform == "darwin":
-        # Rename main.app → RIVER.app
         _rename_output("main", APP_NAME, "app")
     else:
-        # Rename main.dist → RIVER.dist
         _rename_output("main", APP_NAME, "dist")
+
+    # Copy nofollow packages (e.g. qfluentwidgets) into the output
+    _copy_nofollow_packages()
 
     # Remove build cache directories
     for d in DIST_DIR.glob("*.build"):
