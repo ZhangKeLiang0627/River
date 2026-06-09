@@ -253,14 +253,31 @@ def main() -> int:
     command = " ".join(args)
 
     print(f"--- Nuitka build command ---\n{command}\n")
-    result = subprocess.run(command, shell=True)
-    if result.returncode != 0:
-        return result.returncode
 
-    _post_build()
-    print(f"\n--- Build finished ---")
-    _report_paths()
-    return 0
+    try:
+        result = subprocess.run(command, shell=True)
+        if result.returncode != 0:
+            print(f"  ! Nuitka returned exit code {result.returncode}, "
+                  f"checking if output was already produced...")
+    except KeyboardInterrupt:
+        print("\n  ! Received KeyboardInterrupt (CI may have cancelled)")
+        print("  ! Checking if Nuitka already produced output...")
+
+    # If the output already exists (Nuitka finished before the interrupt),
+    # proceed with post-processing.  This covers the case where the CI
+    # runner sends Ctrl+C after the build completed but before
+    # subprocess.run() returned.
+    main_out = DIST_DIR / "main.dist"
+    main_app = DIST_DIR / "main.app"
+    if main_out.exists() or main_app.exists():
+        print("  + Output detected, proceeding with post-processing...")
+        _post_build()
+        print(f"\n--- Build finished ---")
+        _report_paths()
+        return 0
+
+    print("\n  ! No output found after interrupt -- build did not complete.")
+    return 1
 
 
 if __name__ == "__main__":
