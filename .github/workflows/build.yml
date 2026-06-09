@@ -32,6 +32,8 @@ env:
   APP_NAME: RIVER
   PROJECT_NAME: River
   IS_TAG_BUILD: ${{ startsWith(github.ref, 'refs/tags/v') }}
+  # Force UTF-8 everywhere to avoid cp1252 UnicodeEncodeError on Windows CI
+  PYTHONIOENCODING: utf-8
 
 jobs:
   # ============================================================

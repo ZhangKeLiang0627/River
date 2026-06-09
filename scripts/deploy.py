@@ -12,10 +12,17 @@ Customize:
     Modify build_args() to add/remove Nuitka flags as needed.
 """
 
+import os
 import shutil
 import subprocess
 import sys
 from pathlib import Path
+
+# Force UTF-8 for stdout/stderr (prevents UnicodeEncodeError on
+# Windows CI where the console codepage is cp1252).
+if sys.platform == "win32" and os.environ.get("PYTHONIOENCODING") is None:
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
 
 # ---------------------------------------------------------------------------
 # Project metadata
