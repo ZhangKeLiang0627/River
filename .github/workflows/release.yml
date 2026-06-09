@@ -1,0 +1,266 @@
+name: Publish release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Release tag or version name, for example v00.01.00 or v00.01.00-rc1"
+        required: true
+        type: string
+
+# ── Environment ──────────────────────────────────────────────────────────────
+# These are used across jobs and should be bumped together.
+env:
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  # ── Version extraction ────────────────────────────────────────────────────
+  get-version:
+    runs-on: ubuntu-latest
+    outputs:
+      VERSION: ${{ steps.set-version.outputs.VERSION }}
+      VERSION_NAME: ${{ steps.set-version.outputs.VERSION_NAME }}
+      IS_PRERELEASE: ${{ steps.set-version.outputs.IS_PRERELEASE }}
+    steps:
+      - name: Set version
+        id: set-version
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            TAG_NAME="${{ inputs.release_tag }}"
+          else
+            TAG_NAME="${GITHUB_REF#refs/tags/}"
+          fi
+
+          # Strip leading "v"
+          TAG_NAME="${TAG_NAME#v}"
+
+          echo "VERSION=$(echo "$TAG_NAME" | sed 's/-rc.*//')" >> $GITHUB_OUTPUT
+          echo "VERSION_NAME=$TAG_NAME" >> $GITHUB_OUTPUT
+
+          if echo "$TAG_NAME" | grep -q -- '-rc'; then
+            echo "IS_PRERELEASE=true" >> $GITHUB_OUTPUT
+          else
+            echo "IS_PRERELEASE=false" >> $GITHUB_OUTPUT
+          fi
+
+  # ── Windows build (x86_64) ────────────────────────────────────────────────
+  windows-build:
+    needs: get-version
+    runs-on: windows-latest
+    env:
+      VERSION: ${{ needs.get-version.outputs.VERSION }}
+      VERSION_NAME: ${{ needs.get-version.outputs.VERSION_NAME }}
+      IS_PRERELEASE: ${{ needs.get-version.outputs.IS_PRERELEASE }}
+    outputs:
+      VERSION: ${{ steps.pass-outputs.outputs.VERSION }}
+      VERSION_NAME: ${{ steps.pass-outputs.outputs.VERSION_NAME }}
+      IS_PRERELEASE: ${{ steps.pass-outputs.outputs.IS_PRERELEASE }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          architecture: x64
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Update version in config.py
+        shell: pwsh
+        run: |
+          $path = "app\common\config.py"
+          $content = Get-Content $path -Raw
+          # Capture and preserve leading whitespace
+          $content = $content -replace '(?m)^(\s*)appVersion\s*=\s*".*?"', "`$1appVersion = `"$env:VERSION`""
+          [System.IO.File]::WriteAllText($(Resolve-Path $path), $content, $(New-Object System.Text.UTF8Encoding($false)))
+
+      - name: Compile Qt resources
+        run: pyside6-rcc app/resources/resources.qrc -o app/resources/resources_rc.py
+
+      - name: Build with Nuitka
+        run: python scripts/deploy.py
+        timeout-minutes: 120
+
+      - name: Package portable zip
+        run: |
+          Move-Item dist\main.dist "River_$env:VERSION_NAME_windows_x64"
+          Compress-Archive -Path "River_$env:VERSION_NAME_windows_x64\*" -DestinationPath "River_$env:VERSION_NAME_windows_x64_portable.zip"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: windows-artifact
+          path: River_${{ env.VERSION_NAME }}_windows_x64_portable.zip
+
+      # Pass version outputs so publish job can consume them
+      - name: Pass outputs
+        id: pass-outputs
+        shell: pwsh
+        run: |
+          echo "VERSION=$env:VERSION" >> $env:GITHUB_OUTPUT
+          echo "VERSION_NAME=$env:VERSION_NAME" >> $env:GITHUB_OUTPUT
+          echo "IS_PRERELEASE=$env:IS_PRERELEASE" >> $env:GITHUB_OUTPUT
+
+  # ── Linux builds (amd64 + arm64) ──────────────────────────────────────────
+  linux-build:
+    needs: get-version
+    strategy:
+      matrix:
+        include:
+          - arch: amd64
+            os: ubuntu-latest
+            python_arch: x64
+          - arch: arm64
+            os: ubuntu-24.04-arm
+            python_arch: arm64
+    runs-on: ${{ matrix.os }}
+    env:
+      VERSION: ${{ needs.get-version.outputs.VERSION }}
+      VERSION_NAME: ${{ needs.get-version.outputs.VERSION_NAME }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          architecture: ${{ matrix.python_arch }}
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Update version in config.py
+        run: |
+          sed -i 's/^\(\s*\)appVersion\s*=\s*".*"/\1appVersion = "'"$VERSION"'"/' app/common/config.py
+
+      - name: Compile Qt resources
+        run: pyside6-rcc app/resources/resources.qrc -o app/resources/resources_rc.py
+
+      - name: Build with Nuitka
+        run: python scripts/deploy.py
+        timeout-minutes: 120
+
+      - name: Package portable tar.gz
+        run: |
+          mv dist/main.dist "River_${VERSION_NAME}_linux_${matrix.arch}"
+          tar -czf "River_${VERSION_NAME}_linux_${matrix.arch}_portable.tar.gz" "River_${VERSION_NAME}_linux_${matrix.arch}"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: linux-${{ matrix.arch }}-artifact
+          path: River_${{ env.VERSION_NAME }}_linux_${{ matrix.arch }}_portable.tar.gz
+
+  # ── macOS builds (x86_64 + aarch64) ───────────────────────────────────────
+  macos-build:
+    needs: get-version
+    strategy:
+      matrix:
+        include:
+          - arch: x86_64
+            os: macos-13
+            python_arch: x64
+          - arch: aarch64
+            os: macos-latest
+            python_arch: arm64
+    runs-on: ${{ matrix.os }}
+    env:
+      VERSION: ${{ needs.get-version.outputs.VERSION }}
+      VERSION_NAME: ${{ needs.get-version.outputs.VERSION_NAME }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          architecture: ${{ matrix.python_arch }}
+
+      - name: Install system dependencies
+        run: brew install create-dmg
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Update version in config.py
+        run: |
+          sed -i '' 's/^\([[:space:]]*\)appVersion = ".*"/\1appVersion = "'"$VERSION"'"/' app/common/config.py
+
+      - name: Compile Qt resources
+        run: pyside6-rcc app/resources/resources.qrc -o app/resources/resources_rc.py
+
+      - name: Build with Nuitka
+        run: python scripts/deploy.py
+        timeout-minutes: 120
+
+      - name: Package .dmg
+        run: |
+          # Locate the .app bundle created by Nuitka (name varies by platform).
+          APP_BUNDLE=$(find dist -maxdepth 2 -name "*.app" -type d | head -1)
+          if [ -z "$APP_BUNDLE" ]; then
+            echo "ERROR: No .app bundle found in dist/"
+            exit 1
+          fi
+          echo "Found app bundle: $APP_BUNDLE"
+          APP_NAME=$(basename "$APP_BUNDLE" .app)
+
+          create-dmg \
+            --volname "River Installer" \
+            --window-pos 400 200 \
+            --window-size 660 400 \
+            --icon-size 80 \
+            --icon "${APP_NAME}.app" 160 160 \
+            --hide-extension "${APP_NAME}.app" \
+            --app-drop-link 500 160 \
+            "River_${VERSION_NAME}_macos_${matrix.arch}.dmg" \
+            "${APP_BUNDLE}"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: macos-${{ matrix.arch }}-artifact
+          path: River_${{ env.VERSION_NAME }}_macos_${{ matrix.arch }}.dmg
+
+  # ── Publish ───────────────────────────────────────────────────────────────
+  # Only runs on tag push (not workflow_dispatch) to create a GitHub Release.
+  publish:
+    if: github.event_name != 'workflow_dispatch'
+    needs: [windows-build, linux-build, macos-build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      discussions: write
+    env:
+      VERSION_NAME: ${{ needs.windows-build.outputs.VERSION_NAME }}
+      IS_PRERELEASE: ${{ needs.windows-build.outputs.IS_PRERELEASE }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: "*"
+          path: release-artifacts
+          merge-multiple: true
+
+      - name: List artifacts
+        run: ls -lh release-artifacts/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          name: v${{ env.VERSION_NAME }}
+          make_latest: ${{ env.IS_PRERELEASE != 'true' }}
+          draft: false
+          prerelease: ${{ env.IS_PRERELEASE == 'true' }}
+          generate_release_notes: true
+          discussion_category_name: announcements
+          files: |
+            release-artifacts/*
