@@ -154,13 +154,17 @@ jobs:
             Compress-Archive -Path "$distDir\*" -DestinationPath "${distDir}_portable.zip"
           }
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v6
+      - name: Upload portable zip artifact
+        uses: actions/upload-artifact@v4
         with:
           name: windows-artifact
-          path: |
-            River_${{ env.VERSION_NAME }}_windows_x64_portable.zip
-            dist/River_${{ env.VERSION_NAME }}_windows_x64_setup.exe
+          path: River_${{ env.VERSION_NAME }}_windows_x64_portable.zip
+
+      - name: Upload setup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-setup-artifact
+          path: dist/River_${{ env.VERSION_NAME }}_windows_x64_setup.exe
 
       # Pass version outputs so publish job can consume them
       - name: Pass outputs
@@ -265,7 +269,7 @@ jobs:
 
       - name: Upload .deb artifact
         if: ${{ matrix.arch == 'amd64' }}
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         with:
           name: linux-${{ matrix.arch }}-deb
           path: dist/River_${{ env.VERSION_NAME }}_linux_${{ matrix.arch }}.deb
@@ -276,7 +280,7 @@ jobs:
           tar -czf "River_${VERSION_NAME}_linux_${{ matrix.arch }}_portable.tar.gz" "River_${VERSION_NAME}_linux_${{ matrix.arch }}"
 
       - name: Upload portable artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         with:
           name: linux-${{ matrix.arch }}-artifact
           path: River_${{ env.VERSION_NAME }}_linux_${{ matrix.arch }}_portable.tar.gz
@@ -352,7 +356,7 @@ jobs:
             "${APP_BUNDLE}"
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         with:
           name: macos-${{ matrix.arch }}-artifact
           path: River_${{ env.VERSION_NAME }}_macos_${{ matrix.arch }}.dmg
@@ -373,7 +377,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v4
         with:
           pattern: "*"
           path: release-artifacts
