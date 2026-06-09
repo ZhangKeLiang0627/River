@@ -86,16 +86,75 @@ jobs:
         run: python scripts/deploy.py
         timeout-minutes: 120
 
+      - name: Rename executable for installer
+        shell: pwsh
+        run: |
+          Rename-Item -Path "dist\main.dist\main.exe" -NewName "River.exe"
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          choco install innosetup --no-progress -y
+
+      - name: Build Installer with Inno Setup
+        shell: pwsh
+        run: |
+          # Replace version placeholder and translation file URLs
+          (Get-Content River.iss) -replace 'APPLICATION_VERSION', "$env:VERSION" | Set-Content River.iss
+
+          # Try to find iscc.exe
+          $isccPaths = @(
+            "C:\Program Files (x86)\Inno Setup 6\iscc.exe",
+            "$env:LOCALAPPDATA\Programs\Inno Setup 6\iscc.exe",
+            "C:\Program Files\Inno Setup 6\iscc.exe"
+          )
+          $iscc = $null
+          foreach ($p in $isccPaths) {
+            if (Test-Path $p) { $iscc = $p; break }
+          }
+          if (-not $iscc) {
+            # Try to find it anywhere
+            $iscc = (Get-ChildItem -Path "$env:ProgramFiles", "$env:ProgramFiles(x86)" -Recurse -Filter "iscc.exe" -ErrorAction SilentlyContinue | Select-Object -First 1).FullName
+          }
+          if (-not $iscc) { throw "iscc.exe not found" }
+
+          Write-Host "Using iscc: $iscc"
+          & $iscc River.iss
+
+      - name: Rename installer
+        shell: pwsh
+        run: |
+          # Find the built installer (output filename from .iss has version placeholder)
+          $setupFiles = Get-ChildItem -Path "dist\River-v*.exe" -ErrorAction SilentlyContinue
+          if (-not $setupFiles) {
+            # Try alternate naming pattern
+            $setupFiles = Get-ChildItem -Path "dist\*.exe" -ErrorAction SilentlyContinue | Where-Object { $_.Name -like "*setup*" -or $_.Name -like "*installer*" }
+          }
+          if ($setupFiles) {
+            $setupFile = $setupFiles | Select-Object -First 1
+            $newName = "River_$env:VERSION_NAME_windows_x64_setup.exe"
+            Write-Host "Renaming '$($setupFile.Name)' -> '$newName'"
+            Rename-Item -Path $setupFile.FullName -NewName $newName
+          } else {
+            Write-Host "No setup exe found in dist/, checking..."
+            Get-ChildItem -Path dist -ErrorAction SilentlyContinue | ForEach-Object { Write-Host "  $($_.Name)" }
+          }
+
       - name: Package portable zip
         run: |
-          Move-Item dist\main.dist "River_$env:VERSION_NAME_windows_x64"
-          Compress-Archive -Path "River_$env:VERSION_NAME_windows_x64\*" -DestinationPath "River_$env:VERSION_NAME_windows_x64_portable.zip"
+          $distDir = "River_$env:VERSION_NAME_windows_x64"
+          Move-Item dist\main.dist $distDir -ErrorAction SilentlyContinue
+          if (Test-Path $distDir) {
+            Compress-Archive -Path "$distDir\*" -DestinationPath "${distDir}_portable.zip"
+          }
 
       - name: Upload artifact
         uses: actions/upload-artifact@v6
         with:
           name: windows-artifact
-          path: River_${{ env.VERSION_NAME }}_windows_x64_portable.zip
+          path: |
+            River_${{ env.VERSION_NAME }}_windows_x64_portable.zip
+            dist/River_${{ env.VERSION_NAME }}_windows_x64_setup.exe
 
       # Pass version outputs so publish job can consume them
       - name: Pass outputs
@@ -131,7 +190,12 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
           architecture: ${{ matrix.python_arch }}
 
-      - name: Install dependencies
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libegl1 libgl1 libxkbcommon-x11-0 libfontconfig1 libdbus-1-3
+
+      - name: Install Python dependencies
         run: pip install -r requirements.txt
 
       - name: Update version in config.py
@@ -145,12 +209,67 @@ jobs:
         run: python scripts/deploy.py
         timeout-minutes: 120
 
+      - name: Build .deb package (amd64 only)
+        if: ${{ matrix.arch == 'amd64' }}
+        run: |
+          DIST_DIR="dist/main.dist"
+          DEB_ROOT="$RUNNER_TEMP/deb-root"
+          PACKAGE_NAME="river"
+          INSTALL_DIR="/opt/River"
+
+          rm -rf "$DEB_ROOT"
+          mkdir -p \
+            "$DEB_ROOT/DEBIAN" \
+            "$DEB_ROOT$INSTALL_DIR" \
+            "$DEB_ROOT/usr/bin" \
+            "$DEB_ROOT/usr/share/applications" \
+            "$DEB_ROOT/usr/share/icons/hicolor/256x256/apps"
+
+          cp -R "$DIST_DIR"/. "$DEB_ROOT$INSTALL_DIR/"
+          chmod +x "$DEB_ROOT$INSTALL_DIR/main.bin"
+          ln -s "$INSTALL_DIR/main.bin" "$DEB_ROOT/usr/bin/$PACKAGE_NAME"
+
+          cat > "$DEB_ROOT/DEBIAN/control" <<EOF
+          Package: $PACKAGE_NAME
+          Version: $VERSION
+          Section: net
+          Priority: optional
+          Architecture: amd64
+          Maintainer: kkl <kkl@example.com>
+          Description: River - A multi-threading downloader based on PySide6
+          Depends: libegl1, libgl1, libxkbcommon-x11-0, libfontconfig1, libdbus-1-3
+          EOF
+
+          cat > "$DEB_ROOT/usr/share/applications/river.desktop" <<EOF
+          [Desktop Entry]
+          Type=Application
+          Name=River
+          Comment=A multi-threading downloader based on PySide6
+          Exec=$PACKAGE_NAME
+          Icon=$PACKAGE_NAME
+          Terminal=false
+          Categories=Network;Utility;
+          StartupNotify=false
+          EOF
+
+          cp "app/resources/images/logo.png" "$DEB_ROOT/usr/share/icons/hicolor/256x256/apps/$PACKAGE_NAME.png" 2>/dev/null || true
+
+          dpkg-deb --build --root-owner-group "$DEB_ROOT" "dist/River_${VERSION_NAME}_linux_${matrix.arch}.deb"
+          echo "DEB_FILE=dist/River_${VERSION_NAME}_linux_${matrix.arch}.deb" >> $GITHUB_ENV
+
+      - name: Upload .deb artifact
+        if: ${{ matrix.arch == 'amd64' }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: linux-${{ matrix.arch }}-deb
+          path: dist/River_${{ env.VERSION_NAME }}_linux_${{ matrix.arch }}.deb
+
       - name: Package portable tar.gz
         run: |
           mv dist/main.dist "River_${VERSION_NAME}_linux_${matrix.arch}"
           tar -czf "River_${VERSION_NAME}_linux_${matrix.arch}_portable.tar.gz" "River_${VERSION_NAME}_linux_${matrix.arch}"
 
-      - name: Upload artifact
+      - name: Upload portable artifact
         uses: actions/upload-artifact@v6
         with:
           name: linux-${{ matrix.arch }}-artifact
@@ -181,6 +300,12 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
           architecture: ${{ matrix.python_arch }}
 
+      - name: Remove problematic brew libs (x86_64 workaround)
+        if: ${{ matrix.arch == 'x86_64' }}
+        run: |
+          brew remove --force --ignore-dependencies openssl@3 2>/dev/null || true
+          brew cleanup openssl@3 2>/dev/null || true
+
       - name: Install system dependencies
         run: brew install create-dmg
 
@@ -198,9 +323,23 @@ jobs:
         run: python scripts/deploy.py
         timeout-minutes: 120
 
+      - name: Post-build fixups
+        run: |
+          APP_BUNDLE=$(find dist -maxdepth 2 -name "*.app" -type d | head -1)
+          if [ -n "$APP_BUNDLE" ]; then
+            chmod +x "$APP_BUNDLE/Contents/MacOS/"*
+            rm -rf "dist/main.build" 2>/dev/null || true
+            rm -rf "dist/main.dist" 2>/dev/null || true
+          fi
+
+      - name: Reinstall openssl libs (x86_64 workaround)
+        if: ${{ matrix.arch == 'x86_64' }}
+        run: |
+          brew install openssl@3 2>/dev/null || true
+
       - name: Package .dmg
         run: |
-          # Locate the .app bundle created by Nuitka (name varies by platform).
+          # Locate the .app bundle created by Nuitka
           APP_BUNDLE=$(find dist -maxdepth 2 -name "*.app" -type d | head -1)
           if [ -z "$APP_BUNDLE" ]; then
             echo "ERROR: No .app bundle found in dist/"
@@ -217,7 +356,7 @@ jobs:
             --icon "${APP_NAME}.app" 160 160 \
             --hide-extension "${APP_NAME}.app" \
             --app-drop-link 500 160 \
-            "River_${VERSION_NAME}_macos_${matrix.arch}.dmg" \
+            "River_${{ env.VERSION_NAME }}_macos_${{ matrix.arch }}.dmg" \
             "${APP_BUNDLE}"
 
       - name: Upload artifact
