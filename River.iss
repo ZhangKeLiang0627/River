@@ -1,10 +1,10 @@
 ; Inno Setup script for River
-; https://github.com/ZhangKeLiang0627/River-dev
+; https://github.com/ZhangKeLiang0627/River
 
 #define MyAppName "River"
 #define MyAppVersion "APPLICATION_VERSION"
 #define MyAppPublisher "kkl"
-#define MyAppURL "https://github.com/ZhangKeLiang0627/River-dev"
+#define MyAppURL "https://github.com/ZhangKeLiang0627/River"
 #define MyAppExeName "River.exe"
 
 [Setup]
