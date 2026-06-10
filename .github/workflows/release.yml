@@ -11,7 +11,7 @@ on:
         required: true
         type: string
 
-# ── Environment ──────────────────────────────────────────────────────────────
+# ── Environment ─────────────────────────────────────────────────────────────
 # These are used across jobs and should be bumped together.
 env:
   PYTHON_VERSION: "3.11"
@@ -127,7 +127,7 @@ jobs:
           Write-Host "Using iscc: $iscc"
           & $iscc River.iss
 
-      - name: Rename installer
+      - name: Rename installer and copy to workspace root
         shell: pwsh
         run: |
           # Find the built installer (output filename from .iss has version placeholder)
@@ -141,17 +141,24 @@ jobs:
             $newName = "River_${env:VERSION_NAME}_windows_x64_setup.exe"
             Write-Host "Renaming '$($setupFile.Name)' -> '$newName'"
             Rename-Item -Path $setupFile.FullName -NewName $newName
+            
+            # Copy to workspace root to preserve it
+            $destPath = "$env:GITHUB_WORKSPACE\$newName"
+            Copy-Item -Path "dist\$newName" -Destination $destPath -Force
+            Write-Host "Copied to workspace: $destPath"
           } else {
             Write-Host "No setup exe found in dist/, checking..."
             Get-ChildItem -Path dist -ErrorAction SilentlyContinue | ForEach-Object { Write-Host "  $($_.Name)" }
           }
 
       - name: Package portable zip
+        shell: pwsh
         run: |
           $distDir = "River_${env:VERSION_NAME}_windows_x64"
           Move-Item dist\main.dist $distDir -ErrorAction SilentlyContinue
           if (Test-Path $distDir) {
             Compress-Archive -Path "$distDir\*" -DestinationPath "${distDir}_portable.zip"
+            Write-Host "Created portable zip: ${distDir}_portable.zip"
           }
 
       - name: Upload artifact
@@ -160,7 +167,7 @@ jobs:
           name: windows-artifact
           path: |
             River_${{ env.VERSION_NAME }}_windows_x64_portable.zip
-            dist/River_${{ env.VERSION_NAME }}_windows_x64_setup.exe
+            River_${{ env.VERSION_NAME }}_windows_x64_setup.exe
 
       # Pass version outputs so publish job can consume them
       - name: Pass outputs
@@ -357,7 +364,7 @@ jobs:
           name: macos-${{ matrix.arch }}-artifact
           path: River_${{ env.VERSION_NAME }}_macos_${{ matrix.arch }}.dmg
 
-  # ── Publish ───────────────────────────────────────────────────────────────
+  # ── Publish ────────────────────────────────────────────────────────────────
   # Only runs on tag push (not workflow_dispatch) to create a GitHub Release.
   publish:
     if: github.event_name != 'workflow_dispatch'
