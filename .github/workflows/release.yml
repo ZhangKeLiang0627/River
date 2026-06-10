@@ -336,6 +336,16 @@ jobs:
             rm -rf "dist/main.dist" 2>/dev/null || true
           fi
 
+      - name: Rename app bundle
+        run: |
+          if [ -d "dist/main.app" ]; then
+            mv "dist/main.app" "dist/River.app"
+            echo "Renamed dist/main.app → dist/River.app"
+          else
+            echo "No dist/main.app found (already renamed?)"
+            ls dist/
+          fi
+
       - name: Package .dmg
         run: |
           # Locate the .app bundle created by Nuitka
