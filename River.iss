@@ -8,7 +8,7 @@
 #define MyAppExeName "River.exe"
 
 [Setup]
-AppId={C7E5C3F5-8579-4C76-BC5F-2D18D82FD9B9}
+AppId={{C7E5C3F5-8579-4C76-BC5F-2D18D82FD9B9}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
