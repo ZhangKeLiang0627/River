@@ -258,7 +258,7 @@ jobs:
           StartupNotify=false
           EOF
 
-          cp "app/resources/images/logo.png" "$DEB_ROOT/usr/share/icons/hicolor/256x256/apps/$PACKAGE_NAME.png" 2>/dev/null || true
+          cp "app/resources/images/river.png" "$DEB_ROOT/usr/share/icons/hicolor/256x256/apps/$PACKAGE_NAME.png" 2>/dev/null || true
 
           dpkg-deb --build --root-owner-group "$DEB_ROOT" "dist/River_${VERSION_NAME}_linux_${{ matrix.arch }}.deb"
           echo "DEB_FILE=dist/River_${VERSION_NAME}_linux_${{ matrix.arch }}.deb" >> $GITHUB_ENV
